@@ -1,0 +1,58 @@
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>My GitHub Page with Google Sheet Data</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    </head>
+    <body>
+        <div id="markdown-content">
+            <!-- Your Markdown content will be rendered here -->
+            # My Awesome Page
+            This page displays data from a Google Sheet.
+        </div>
+
+        <div id="google-sheet-data">
+            <h2>Data from Google Sheet:</h2>
+            <table id="data-table">
+                <thead>
+                    <!-- Table headers will be added by JavaScript -->
+                </thead>
+                <tbody>
+                    <!-- Table rows will be added by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <script>
+            // Your JavaScript to fetch and display Google Sheet data
+            const googleSheetUrl = 'https://docs.google.com/spreadsheets/d/17YEFTLMnJ2ddWnQDSxp4-ykfDH0Fy2KR1Cxj4q7rpUU/edit?usp=sharing'; // Replace with your published sheet URL
+
+            Papa.parse(googleSheetUrl, {
+                download: true,
+                header: true,
+                complete: function(results) {
+                    const tableHead = document.getElementById('data-table').querySelector('thead');
+                    const tableBody = document.getElementById('data-table').querySelector('tbody');
+
+                    // Add headers
+                    let headerRow = '<tr>';
+                    results.meta.fields.forEach(field => {
+                        headerRow += `<th>${field}</th>`;
+                    });
+                    headerRow += '</tr>';
+                    tableHead.innerHTML = headerRow;
+
+                    // Add data rows
+                    results.data.forEach(row => {
+                        let dataRow = '<tr>';
+                        results.meta.fields.forEach(field => {
+                            dataRow += `<td>${row[field]}</td>`;
+                        });
+                        dataRow += '</tr>';
+                        tableBody.innerHTML += dataRow;
+                    });
+                }
+            });
+        </script>
+    </body>
+    </html>
