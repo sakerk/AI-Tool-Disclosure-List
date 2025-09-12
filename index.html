@@ -3,202 +3,160 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Google Sheet → Markdown Table</title>
+  <title>AI Tool Disclosure List</title>
   <style>
-    :root { --bg:#0b0f14; --card:#111826; --muted:#a7b3c0; --text:#e6edf3; --accent:#60a5fa; }
-    html,body{height:100%}
-    body{margin:0; background:var(--bg); color:var(--text); font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"}
-    .wrap{max-width:950px; margin:40px auto; padding:0 16px}
-    .card{background:var(--card); border:1px solid #1f2937; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,.25)}
-    header{padding:20px 20px 0}
-    h1{margin:0 0 10px; font-size:22px}
-    .muted{color:var(--muted)}
-    .row{display:flex; gap:12px; flex-wrap:wrap; padding:16px 20px 0}
-    input[type="text"], select{flex:1; min-width:240px; padding:10px 12px; border-radius:12px; border:1px solid #263241; background:#0f172a; color:var(--text)}
-    .btn{appearance:none; border:1px solid #27415f; background:#0f213c; color:#dbeafe; padding:10px 14px; border-radius:12px; cursor:pointer}
-    .btn:hover{background:#15325d}
-    .btn.secondary{border-color:#334155; background:#0b1220; color:#cbd5e1}
-    .panes{display:grid; grid-template-columns:1fr; gap:16px; padding:16px 20px 20px}
-    @media (min-width:900px){ .panes{grid-template-columns:1fr 1fr} }
-    textarea{width:100%; min-height:340px; resize:vertical; padding:14px; border-radius:12px; border:1px solid #263241; background:#0b1220; color:var(--text); font:12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, Monaco, "Liberation Mono", monospace}
-    .tableScroll{overflow:auto; border:1px solid #263241; border-radius:12px; background:#0b1220}
-    table{border-collapse:collapse; width:100%; min-width:520px}
-    th, td{border-bottom:1px solid #1f2937; padding:10px 12px; text-align:left}
-    th{position:sticky; top:0; background:#0f172a}
-    .foot{display:flex; gap:10px; align-items:center; justify-content:space-between; padding:12px 20px 20px}
-    code{background:#0b1220; border:1px solid #263241; padding:2px 6px; border-radius:6px}
+    :root {
+      --bg:#0b0f14; --panel:#0f172a; --muted:#93a1b1; --text:#e6edf3; --line:#1f2937;
+      --accent:#60a5fa;
+    }
+    html, body { height:100%; }
+    body {
+      margin:0; background:var(--bg); color:var(--text);
+      font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    .app { height:100vh; display:flex; flex-direction:column; }
+    .topbar {
+      display:flex; gap:12px; align-items:center; padding:12px 16px;
+      background:var(--panel); border-bottom:1px solid var(--line);
+      position:sticky; top:0; z-index:10;
+    }
+    .title { margin:0; font-size:16px; font-weight:600; letter-spacing:.2px; }
+    .spacer { flex:1; }
+    .search {
+      min-width:220px; max-width:380px; width:36ch;
+      padding:10px 12px; border-radius:12px; outline:none;
+      border:1px solid #263241; background:#0b1220; color:var(--text);
+    }
+    .count { font-size:12px; color:var(--muted); }
+    .wrap {
+      flex:1 1 auto; min-height:0; /* allow child to scroll */
+      padding:10px; /* small padding around the table */
+    }
+    .tableScroll {
+      height:100%; overflow:auto; background:#0b1220; border:1px solid #263241; border-radius:12px;
+    }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:10px 12px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+    thead th { position:sticky; top:0; background:#0f172a; z-index:1; }
+    tbody tr.hide { display:none; }
+    /* Stripe rows for readability */
+    tbody tr:nth-child(odd) td { background:rgba(255,255,255,.01); }
+    a { color:var(--accent); }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <header>
-        <h1>Google Sheet → Markdown Table</h1>
-        <p class="muted">Fetch a public Google Sheet and render it as a Markdown table (perfect for README.md on GitHub). No API key needed.</p>
-      </header>
+  <div class="app">
+    <header class="topbar">
+      <h1 class="title">AI Tool Disclosure List</h1>
+      <div class="spacer"></div>
+      <input id="q" class="search" type="search" placeholder="Search…" aria-label="Search table" />
+      <span id="count" class="count" aria-live="polite"></span>
+    </header>
 
-      <div class="row">
-        <input id="sheetId" type="text" placeholder="Google Sheet ID" />
-        <input id="gid" type="text" placeholder="Worksheet gid (usually 0)" />
-        <button class="btn" id="loadBtn">Load</button>
-        <button class="btn secondary" id="copyBtn" title="Copy Markdown to clipboard">Copy Markdown</button>
-      </div>
-
-      <div class="panes">
-        <div>
-          <div class="tableScroll"><table id="htmlTable"></table></div>
-        </div>
-        <div>
-          <label class="muted">Markdown Output</label>
-          <textarea id="mdOut" spellcheck="false"></textarea>
-        </div>
-      </div>
-
-      <div class="foot">
-        <small class="muted">Tip: Your Sheet must be <em>public to anyone with the link</em>. This uses the <code>gviz</code> endpoint or CSV fallback.</small>
-        <div>
-          <button class="btn" id="downloadBtn">Download .md</button>
-        </div>
+    <div class="wrap">
+      <div class="tableScroll">
+        <table id="sheet"></table>
       </div>
     </div>
-
-    <p class="muted" style="margin-top:14px">Example Sheet ID: <code>17YEFTLMnJ2ddWnQDSxp4-ykfDH0Fy2KR1Cxj4q7rpUU</code>. Try gid <code>0</code> first; if the wrong tab loads, open the sheet in a browser and copy the <code>gid=</code> from the URL of the tab you want.</p>
   </div>
 
   <script>
-    // ---- URL builders ----
-    function sheetUrlJSON(sheetId, gid){
-      return "https://docs.google.com/spreadsheets/d/" + sheetId + "/gviz/tq?gid=" + encodeURIComponent(gid) + "&tqx=out:json";
-    }
-    function sheetUrlCSV(sheetId, gid){
-      return "https://docs.google.com/spreadsheets/d/" + sheetId + "/gviz/tq?tqx=out:csv&gid=" + encodeURIComponent(gid);
-    }
+    // ---- Config: hard-coded to your Google Sheet ----
+    const SHEET_ID = "17YEFTLMnJ2ddWnQDSxp4-ykfDH0Fy2KR1Cxj4q7rpUU";
+    const GID = "0"; // change if your tab uses a different gid
 
     // ---- Helpers ----
+    function gvizUrl(id, gid){
+      return "https://docs.google.com/spreadsheets/d/" + id + "/gviz/tq?gid=" + encodeURIComponent(gid) + "&tqx=out:json";
+    }
     function parseGviz(text){
-      // Response looks like: google.visualization.Query.setResponse({...});
-      var start = text.indexOf("setResponse(");
-      if(start === -1) throw new Error("Unexpected response — is the sheet public?");
-      var json = text.slice(start + "setResponse(".length);
-      if(json.endsWith(");")) json = json.slice(0, -2);
+      // Extract the JSON object inside google.visualization.Query.setResponse(...);
+      const start = text.indexOf("setResponse(");
+      if(start === -1) throw new Error("Unexpected response (is the sheet public?)");
+      const open = text.indexOf("{", start);
+      const close = text.lastIndexOf("}");
+      const json = text.slice(open, close + 1);
       return JSON.parse(json);
     }
-    function toMarkdown(headers, rows){
-      function esc(v){ return (v==null ? "" : String(v).replace(/\|/g, "\\|")); }
-      var headLine = "| " + headers.map(esc).join(" | ") + " |";
-      var sepLine  = "| " + headers.map(function(){return "---";}).join(" | ") + " |";
-      var body = rows.map(function(r){ return "| " + r.map(esc).join(" | ") + " |"; }).join("\n");
-      return headLine + "\n" + sepLine + "\n" + body;
-    }
-    function renderHtmlTable(headers, rows){
-      var tbl = document.getElementById("htmlTable");
+    function renderTable(headers, rows){
+      const tbl = document.getElementById("sheet");
       tbl.innerHTML = "";
-      var thead = document.createElement("thead");
-      var trh = document.createElement("tr");
-      headers.forEach(function(h){
-        var th=document.createElement("th"); th.textContent=h; trh.appendChild(th);
+      const thead = document.createElement("thead");
+      const trh = document.createElement("tr");
+      headers.forEach(h => {
+        const th = document.createElement("th");
+        th.textContent = h;
+        trh.appendChild(th);
       });
       thead.appendChild(trh);
-      var tbody = document.createElement("tbody");
-      rows.forEach(function(r){
-        var tr=document.createElement("tr");
-        r.forEach(function(v){
-          var td=document.createElement("td"); td.textContent = (v==null? "" : v); tr.appendChild(td);
+      const tbody = document.createElement("tbody");
+      rows.forEach(r => {
+        const tr = document.createElement("tr");
+        r.forEach(v => {
+          const td = document.createElement("td");
+          td.textContent = (v == null ? "" : v);
+          tr.appendChild(td);
         });
         tbody.appendChild(tr);
       });
-      tbl.appendChild(thead); tbl.appendChild(tbody);
+      tbl.appendChild(thead);
+      tbl.appendChild(tbody);
     }
 
-    // ---- CSV + JSON fallback fetchers ----
-    async function fetchViaCSV(sheetId, gid){
-      const res = await fetch(sheetUrlCSV(sheetId, gid));
-      if(!res.ok) throw new Error("HTTP " + res.status + " on CSV endpoint");
-      const csv = await res.text();
-      const rows = [];
-      let cur = [], val = "", inQ = false;
-      for(let i=0;i<cvs_length(csv);i++){
-        const ch = csv[i];
-        if(inQ){
-          if(ch === '"'){
-            if(csv[i+1] === '"'){ val += '"'; i++; } else { inQ = false; }
-          } else {
-            val += ch;
-          }
-        } else {
-          if(ch === '"'){ inQ = true; }
-          else if(ch === ","){ cur.push(val); val = ""; }
-          else if(ch === "\n"){ cur.push(val); rows.push(cur); cur = []; val = ""; }
-          else { val += ch; }
-        }
-      }
-      if(val !== "" || cur.length){ cur.push(val); rows.push(cur); }
-      const headers = rows.shift() || [];
-      return { headers, rows };
+    // Search: simple contains across all cells, multi-term support
+    function setupSearch(indexRows){
+      const q = document.getElementById("q");
+      const countEl = document.getElementById("count");
+      const total = indexRows.length;
+      let last = "";
+      const debounced = debounce(() => {
+        const val = q.value.trim().toLowerCase();
+        if(val === last) return;
+        last = val;
+        const terms = val.split(/\s+/).filter(Boolean);
+        let shown = 0;
+        indexRows.forEach(({tr, text}) => {
+          const hit = terms.every(t => text.includes(t));
+          tr.classList.toggle("hide", !hit);
+          if(hit) shown++;
+        });
+        countEl.textContent = (val ? ("Showing " + shown + " of " + total) : (total + " rows"));
+      }, 120);
+      q.addEventListener("input", debounced);
+      // initial count
+      countEl.textContent = total + " rows";
     }
-    // Helper for robust iteration when csv includes CRLF
-    function cvs_length(csv){ return csv.length; }
+    function debounce(fn, ms){
+      let t; return function(){ clearTimeout(t); t = setTimeout(fn, ms); };
+    }
 
-    async function fetchViaJSON(sheetId, gid){
-      const res = await fetch(sheetUrlJSON(sheetId, gid));
-      if(!res.ok) throw new Error("HTTP " + res.status + " on JSON endpoint");
+    // ---- Main load ----
+    async function load(){
+      const res = await fetch(gvizUrl(SHEET_ID, GID));
+      if(!res.ok) throw new Error("HTTP " + res.status);
       const text = await res.text();
       const data = parseGviz(text);
-      const headers = (data.table.cols || []).map(function(c){ return c.label || ""; });
-      const rows = (data.table.rows || []).map(function(r){
-        return (r.c || []).map(function(cell){ return cell ? (cell.f ?? cell.v) : ""; });
+
+      const cols = (data.table.cols || []).map((c, i) => c.label || ("Column " + (i+1)));
+      const rows = (data.table.rows || []).map(r => (r.c || []).map(cell => cell ? (cell.f ?? cell.v) : ""));
+
+      renderTable(cols, rows);
+
+      // Build search index
+      const tbodyRows = Array.from(document.querySelectorAll("#sheet tbody tr"));
+      const indexRows = tbodyRows.map(tr => {
+        const text = Array.from(tr.cells).map(td => td.textContent.toLowerCase()).join(" ");
+        return { tr, text };
       });
-      return { headers, rows };
+      setupSearch(indexRows);
     }
 
-    // ---- Main ----
-    async function loadSheet(){
-      const sheetId = document.getElementById("sheetId").value.trim();
-      const gid = document.getElementById("gid").value.trim() || "0";
-      if(!sheetId){ alert("Enter a Google Sheet ID"); return; }
-
-      let data;
-      try {
-        data = await fetchViaCSV(sheetId, gid);
-      } catch(csvErr){
-        try {
-          data = await fetchViaJSON(sheetId, gid);
-        } catch(jsonErr){
-          alert('Failed to load sheet. Ensure the Sheet is shared to "Anyone with the link" or use File → Share → Publish to the web.\nCSV error: '+csvErr.message+'\nJSON error: '+jsonErr.message);
-          throw jsonErr;
-        }
-      }
-
-      renderHtmlTable(data.headers, data.rows);
-      document.getElementById("mdOut").value = toMarkdown(data.headers, data.rows);
-    }
-
-    // ---- Wire up UI & defaults ----
-    (function init(){
-      const params = new URLSearchParams(location.search);
-      const defaultId = params.get("id") || "17YEFTLMnJ2ddWnQDSxp4-ykfDH0Fy2KR1Cxj4q7rpUU";
-      const defaultGid = params.get("gid") || "0";
-      document.getElementById("sheetId").value = defaultId;
-      document.getElementById("gid").value = defaultGid;
-
-      document.getElementById("loadBtn").addEventListener("click", () => { loadSheet().catch(console.error); });
-      document.getElementById("copyBtn").addEventListener("click", async () => {
-        const md = document.getElementById("mdOut").value;
-        try { await navigator.clipboard.writeText(md); alert("Markdown copied to clipboard"); }
-        catch { alert("Could not copy to clipboard"); }
-      });
-      document.getElementById("downloadBtn").addEventListener("click", () => {
-        const blob = new Blob([document.getElementById("mdOut").value], {type:"text/markdown"});
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = "table.md";
-        a.click();
-        URL.revokeObjectURL(a.href);
-      });
-
-      // Auto-load on page ready
-      window.addEventListener("DOMContentLoaded", loadSheet);
-    })();
+    // Kick off automatically
+    load().catch(err => {
+      const tbl = document.getElementById("sheet");
+      tbl.innerHTML = "<tbody><tr><td>Failed to load Google Sheet: " + (err && err.message ? err.message : err) + "</td></tr></tbody>";
+      console.error(err);
+    });
   </script>
 </body>
 </html>
