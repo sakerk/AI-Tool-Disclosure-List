@@ -1,5 +1,5 @@
 # Purpose
-These documents provide a generalized overview of both commercial and open-source AI-assisted tools commonly used in visual effects (VFX) and animation (ANM) production workflows. The intent is to support vendors, studios, and artists in maintaining transparency and compliance with contractual, legal, or security  requirements that may restrict or require prior approval for the use of AI technologies.
+These documents provide a generalized overview of both commercial and open-source AI-assisted tools commonly used in visual effects (VFX) and animation (ANM) production workflows. The intent is to support vendors, studios, and artists in maintaining transparency with contractual or [security compliance requirements](#compliance-with-mpa-and-tpn-security-frameworks) that may restrict or require prior approval for the use of AI technologies within your company's workflows or pipelines that are used to deliver client content.
 
 The tools described vary in form and integration. Some are embedded within industry-standard software, while others are standalone applications or interfaces layered on top of open-source or commercial platforms. These tools are typically used to enhance, accelerate, or automate specific production tasks. They do not generate original creative content autonomously, but rather assist artists in achieving production goals more efficiently and consistently.
 
@@ -7,8 +7,21 @@ Disclaimer:
 This list is not exhaustive and is subject to periodic updates as new tools emerge and existing technologies evolve. We recommend reviewing the latest version prior to each production cycle to ensure continued compliance and transparency.
 
 If you have any concerns, corrections, or additions, please submit them for review so we can maintain the accuracy and relevance of this resource.
+<br>
 
 
+
+<br>
+
+# THE LIST
+
+[TOOL DISCLOSURE LIST](https://sakerk.github.io/AI-Tool-Disclosure-List/)
+<br>
+
+This is a searchable, community-driven resource for tracking AI tool disclosures. The data is sourced from a centralized [Google Spreadsheet](https://docs.google.com/spreadsheets/d/17YEFTLMnJ2ddWnQDSxp4-ykfDH0Fy2KR1Cxj4q7rpUU/edit?gid=0#gid=0) 
+, which serves as our master document. You can easily search, filter, and export entries to CSV or Markdown (MD) formats for your own use.
+
+If you'd like to contribute to the list, please reach out — we're happy to add collaborators.
 <br>
 
 ##  How to Read and Use the Tool Disclosure Table
@@ -23,7 +36,7 @@ This table helps studios, legal departments, auditors, vendors, and artists main
 | **Risk Level**                  | Quick “traffic light” shorthand showing legal/producer/auditor concern. | *Low, Medium, High* which is tied to the Output Handling category column. ** See Output Handling and Risk Level Categories selections below.                                                                                                                                                                                                                                                                             |
 | **Output Handling Category** | Compliance handling bucket.     | *Standard Software Features – No Approval Required (Low)*<br>*Generative Content – Approval Required (High)*<br>*Assisted, Artist-Controlled – No Approval Required (Medium)*<br>*Internal Use / Non-Deliverable – No Approval Required (Low)*<br>*Disclosure Required – Producer Decides (Medium)* |
 | **Usage Description**           | Plain-English explanation of how the tool uses AI.              | *“AI assists with denoising and tracking in compositing tasks.”*                                                                                                                                                                                                                                    |
-| **Official Website**            | The tool’s official site or reference link.                     | *[https://www.adobe.com/products/aftereffects.html](https://www.adobe.com/products/aftereffects.html)*                                                                                                                                                                                              |
+| **Official Website**            | The tool’s official site or reference link.                     | *[https://www.example.com](https://www.example.com)*                                                                                                                                                                                              |
 <br>
 <br>
 
@@ -42,7 +55,7 @@ This table helps studios, legal departments, auditors, vendors, and artists main
 
 
 
-## Compliance with MPA and TPN+ Security Frameworks
+##  Compliance with MPA and TPN+ Security Frameworks
 
 The **Tool Disclosure List** is a core mechanism for demonstrating compliance with **MPA Content Security Best Practices v5.3.1 OR-5.0 (AI/ML Security Management)**. 
 
