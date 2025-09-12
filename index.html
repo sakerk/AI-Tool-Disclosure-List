@@ -214,10 +214,10 @@
       if(!HEADERS.length) return;
       if(fmt === "md"){
         const md = toMarkdown(HEADERS, ROWS);
-        downloadFile("ai-tool-disclosure-list.md", md, "text/markdown");
+        downloadFile("tool-disclosure-list.md", md, "text/markdown");
       } else {
         const csv = toCSV(HEADERS, ROWS);
-        downloadFile("ai-tool-disclosure-list.csv", csv, "text/csv");
+        downloadFile("tool-disclosure-list.csv", csv, "text/csv");
       }
     });
 
