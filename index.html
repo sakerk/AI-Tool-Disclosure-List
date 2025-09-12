@@ -16,21 +16,27 @@
     }
     .app { height:100vh; display:flex; flex-direction:column; }
     .topbar {
-      display:flex; gap:12px; align-items:center; padding:12px 16px;
+      display:flex; gap:10px; align-items:center; padding:10px 12px;
       background:var(--panel); border-bottom:1px solid var(--line);
       position:sticky; top:0; z-index:10;
     }
     .title { margin:0; font-size:16px; font-weight:600; letter-spacing:.2px; }
     .spacer { flex:1; }
     .search {
-      min-width:220px; max-width:380px; width:36ch;
+      min-width:220px; max-width:420px; width:36ch;
       padding:10px 12px; border-radius:12px; outline:none;
       border:1px solid #263241; background:#0b1220; color:var(--text);
     }
-    .count { font-size:12px; color:var(--muted); }
+    .count { font-size:12px; color:var(--muted); white-space:nowrap; }
+    .exportWrap { display:flex; gap:8px; align-items:center; }
+    .select, .btn {
+      appearance:none; border:1px solid #27415f; background:#0f213c; color:#dbeafe;
+      padding:10px 12px; border-radius:12px; cursor:pointer;
+    }
+    .select { min-width:150px; }
+    .btn:hover { background:#15325d; }
     .wrap {
-      flex:1 1 auto; min-height:0; /* allow child to scroll */
-      padding:10px; /* small padding around the table */
+      flex:1 1 auto; min-height:0; padding:10px;
     }
     .tableScroll {
       height:100%; overflow:auto; background:#0b1220; border:1px solid #263241; border-radius:12px;
@@ -39,17 +45,27 @@
     th, td { padding:10px 12px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
     thead th { position:sticky; top:0; background:#0f172a; z-index:1; }
     tbody tr.hide { display:none; }
-    /* Stripe rows for readability */
     tbody tr:nth-child(odd) td { background:rgba(255,255,255,.01); }
-    a { color:var(--accent); }
+    @media (max-width:720px){
+      .title { display:none; }
+      .search { flex:1; min-width:0; width:auto; }
+      .select { display:none; } /* keep UI compact on small screens */
+    }
   </style>
 </head>
 <body>
   <div class="app">
     <header class="topbar">
       <h1 class="title">AI Tool Disclosure List</h1>
-      <div class="spacer"></div>
       <input id="q" class="search" type="search" placeholder="Search…" aria-label="Search table" />
+      <div class="exportWrap">
+        <select id="fmt" class="select" aria-label="Export format">
+          <option value="md">Markdown (.md)</option>
+          <option value="csv">CSV (.csv)</option>
+        </select>
+        <button id="exportBtn" class="btn">Export</button>
+      </div>
+      <div class="spacer"></div>
       <span id="count" class="count" aria-live="polite"></span>
     </header>
 
@@ -64,6 +80,10 @@
     // ---- Config: hard-coded to your Google Sheet ----
     const SHEET_ID = "17YEFTLMnJ2ddWnQDSxp4-ykfDH0Fy2KR1Cxj4q7rpUU";
     const GID = "0"; // change if your tab uses a different gid
+
+    // Will hold parsed data for export
+    let HEADERS = [];
+    let ROWS = [];
 
     // ---- Helpers ----
     function gvizUrl(id, gid){
@@ -130,6 +150,33 @@
       let t; return function(){ clearTimeout(t); t = setTimeout(fn, ms); };
     }
 
+    // ---- Exporters ----
+    function toMarkdown(headers, rows){
+      const escPipe = v => (v==null ? "" : String(v).replace(/\|/g, "\\|"));
+      const headLine = "| " + headers.map(escPipe).join(" | ") + " |";
+      const sepLine  = "| " + headers.map(()=>"---").join(" | ") + " |";
+      const body = rows.map(r => "| " + r.map(escPipe).join(" | ") + " |").join("\n");
+      return headLine + "\n" + sepLine + "\n" + body + "\n";
+    }
+    function toCSV(headers, rows){
+      function esc(v){
+        if(v==null) v = "";
+        v = String(v);
+        if(/[",\n]/.test(v)){ v = '"' + v.replace(/"/g, '""') + '"'; }
+        return v;
+      }
+      const all = [headers, ...rows];
+      return all.map(r => r.map(esc).join(",")).join("\r\n") + "\r\n";
+    }
+    function downloadFile(filename, text, mime){
+      const blob = new Blob([text], {type: mime});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
     // ---- Main load ----
     async function load(){
       const res = await fetch(gvizUrl(SHEET_ID, GID));
@@ -137,12 +184,22 @@
       const text = await res.text();
       const data = parseGviz(text);
 
-      const cols = (data.table.cols || []).map((c, i) => c.label || ("Column " + (i+1)));
-      const rows = (data.table.rows || []).map(r => (r.c || []).map(cell => cell ? (cell.f ?? cell.v) : ""));
+      const colLabels = (data.table.cols || []).map(c => c.label || "");
+      let rows = (data.table.rows || []).map(r => (r.c || []).map(cell => cell ? (cell.f ?? cell.v) : ""));
 
-      renderTable(cols, rows);
+      // Header logic: if all labels are empty, use first row as header
+      let headers = colLabels.slice();
+      if(headers.every(h => !h) && rows.length){
+        headers = rows[0].map(v => v || "");
+        rows = rows.slice(1);
+      }
 
-      // Build search index
+      HEADERS = headers;
+      ROWS = rows;
+
+      renderTable(headers, rows);
+
+      // Build search index on rendered rows (data-only; header remains sticky at top)
       const tbodyRows = Array.from(document.querySelectorAll("#sheet tbody tr"));
       const indexRows = tbodyRows.map(tr => {
         const text = Array.from(tr.cells).map(td => td.textContent.toLowerCase()).join(" ");
@@ -151,10 +208,23 @@
       setupSearch(indexRows);
     }
 
+    // ---- Wire UI ----
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      const fmt = document.getElementById("fmt").value;
+      if(!HEADERS.length) return;
+      if(fmt === "md"){
+        const md = toMarkdown(HEADERS, ROWS);
+        downloadFile("ai-tool-disclosure-list.md", md, "text/markdown");
+      } else {
+        const csv = toCSV(HEADERS, ROWS);
+        downloadFile("ai-tool-disclosure-list.csv", csv, "text/csv");
+      }
+    });
+
     // Kick off automatically
     load().catch(err => {
       const tbl = document.getElementById("sheet");
-      tbl.innerHTML = "<tbody><tr><td>Failed to load Google Sheet: " + (err && err.message ? err.message : err) + "</td></tr></tbody>";
+      tbl.innerHTML = "<thead><tr><th>Error</th></tr></thead><tbody><tr><td>Failed to load Google Sheet: " + (err && err.message ? err.message : err) + "</td></tr></tbody>";
       console.error(err);
     });
   </script>
