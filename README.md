@@ -1,20 +1,38 @@
 # Purpose
-These documents provide a generalized overview of both AI-enabled and AI-assisted tools, as well as fully generative AI systems and platforms that are commonly used in visual effects (VFX) and animation (ANM) production workflows. The intent is to support vendors, studios, and artists in maintaining transparency with contractual and [security compliance requirements](#compliance-with-mpa-and-tpn-security-frameworks) that may restrict or require prior approval for the use of AI technologies in workflows and pipelines delivering client content.
+### Introduction to AI/ML Tools  
 
-The tools described vary in form and integration: some are embedded within industry-standard commercial software (e.g., motion tracking, denoising), while others are standalone applications or interfaces layered on top of open-source or proprietary platforms or accessed through cloud based platforms via apis and.  Depending on their role, tools are categorized as:
+This document provides an overview of **AI-enabled features**, **AI-assisted tools**, **generative AI systems**, and **cloud-based AI platforms** commonly encountered in visual effects (VFX) and animation (ANM) production workflows.  
 
-* ***AI-Enabled Features***: Traditional software functions that incorporate AI/ML under the hood but are standard parts of licensed tools (e.g., Adobe After Effects motion tracking).
+The purpose of this disclosure is to maintain transparency with contractual and [security compliance requirements](#compliance-with-mpa-and-tpn-security-frameworks) that may restrict or require prior approval for the use of AI/ML technologies in workflows or pipelines delivering client content.  
 
-* ***AI-Assisted Tools***: Utilities that automate or accelerate discrete production tasks while still requiring human direction and oversight (e.g., Topaz AI upscaling, rotoscoping aids).
+AI/ML tools vary widely in form, function, and integration:  
+- Some are **embedded features** within industry-standard commercial software.  
+- Others are **standalone desktop applications** or **open-source frameworks**.  
+- Increasingly, tools are delivered as **cloud-hosted SaaS platforms** that process or generate content offsite.  
 
-* ***Generative AI Systems***: Applications that create new expressive content (images, video, audio, text) and always require client disclosure and prior approval before use in deliverables (e.g., ComfyUI, Stable Diffusion, Adobe Firefly,Google Veo, Runway.Ai).
+For clarity and consistency, tools are classified into the following categories:  
 
-This classification is intended to help ensure tool use is transparent, consistently documented, and aligned with both client agreements and industry compliance obligations, while also acknowledging that not all AI tools function in the same way or carry the same risk.
+1. **AI-Enabled Features (Embedded)**  
+   - Functions built into licensed software, often using AI/ML under the hood, but considered baseline features of the tool.  
+   - *Example: Adobe After Effects motion tracking, Nuke denoising.*  
 
-Disclaimer:
-This list is not exhaustive and is subject to periodic updates as new tools emerge and existing technologies evolve. We recommend reviewing the latest version prior to each production cycle to ensure continued compliance and transparency.
+2. **AI-Assisted Tools (Enhancement/Assistive)**  
+   - Utilities that automate or accelerate discrete production tasks while requiring human oversight.  
+   - *Example: Topaz AI upscaling, rotoscoping aids.*  
 
-If you have any concerns, corrections, or additions, please submit them for review so we can maintain the accuracy and relevance of this resource.
+3. **Generative AI Systems**  
+   - Applications that create new expressive content (images, video, audio, text) that did not exist before.  
+   - Always require **client disclosure and approval** before use in deliverables.  
+   - *Example: Stable Diffusion, RunwayML (local mode), Adobe Firefly desktop.*  
+
+4. **Cloud AI Platforms**  
+   - SaaS or cloud-hosted services where content/data is uploaded, processed, or generated remotely.  
+   - Always require **explicit disclosure and prior client approval** due to data security, IP ownership, and residency concerns.  
+   - *Example: Google Veo, RunwayML (cloud), Pika Labs.*  
+
+This classification ensures that AI/ML tool use is **transparent, consistently documented, and aligned with both client agreements and industry compliance obligations**, while also recognizing that not all AI tools carry the same purpose, integration, or risk profile.  
+
+
 <br>
 
 
@@ -22,6 +40,11 @@ If you have any concerns, corrections, or additions, please submit them for revi
 <br>
 
 # THE LIST
+
+Disclaimer:
+This list is not exhaustive and is subject to periodic updates as new tools emerge and existing technologies evolve. We recommend reviewing the latest version prior to each production cycle to ensure continued compliance and transparency.
+
+If you have any concerns, corrections, or additions, please submit them for review so we can maintain the accuracy and relevance of this resource.
 
 [TOOL DISCLOSURE LIST](https://sakerk.github.io/Tool-Disclosure-List/)
 <br>
@@ -39,8 +62,9 @@ This table helps studios, legal departments, auditors, vendors, and artists main
 | **Column**                      | **Purpose**                                                     | **Values / Examples**                                                                                                                                                                                                                                                                               |
 | ------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Tool Name**                   | Product or platform name.                                       | *Adobe After Effects, SideFX Houdini, RunwayML*                                                                                                                                                                                                                                                     |
-| **License Type**                   | Licensing or distribution type.                                 | *Commercial, Open-source, Hybrid*                                                                                                                                                                                                                                                                   |
-| **Tool Category**          | Functional/industry category.                                   | *VFX / Motion Graphics, Compositing / VFX, Generative AI, Simulation / Rendering, Facial Capture* 
+| **License Type**                   | Licensing or distribution type.                                 | *Commercial, Open-source, Hybrid*
+| **Tool Type**          | Industry category.                                   | *AI-Enabled Features, AI-Assisted Tools, Generative AI Systems, Cloud AI Platforms*                                                                                                                                                                                                                                                                   |
+| **Tool Category**          | Ai Functionality.                                   | *AI-Enabled Features, AI-Assisted Tools, Generative AI Systems, Cloud AI Platforms* 
 | **Hosting Model**          | Where and how the Tool is run and or installed.                                   | *Local / On-Prem, Hybrid ( Local install with Cloud based processing), Cloud (SaaS / Platform)*                                                                                                                                                                                                  |
 | **Risk Level**                  | Quick “traffic light” shorthand showing legal/producer/auditor concern. | *Low, Medium, High* which is tied to the Output Handling category column. ** See Output Handling and Risk Level Categories selections below.                                                                                                                                                                                                                                                                             |
 | **Output Handling Category** | Compliance handling bucket.     | *Standard Software Features – No Approval Required (Low)*<br>*Generative Content – Approval Required (High)*<br>*Assisted, Artist-Controlled – No Approval Required (Medium)*<br>*Internal Use / Non-Deliverable – No Approval Required (Low)*<br>*Disclosure Required – Producer Decides (Medium)* |
