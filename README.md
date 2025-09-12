@@ -24,7 +24,7 @@ If you have any concerns, corrections, or additions, please submit them for revi
 
 # THE LIST
 
-[TOOL DISCLOSURE LIST](https://sakerk.github.io/AI-Tool-Disclosure-List/)
+[TOOL DISCLOSURE LIST](https://sakerk.github.io/Tool-Disclosure-List/)
 <br>
 
 This is a searchable, community-driven resource for tracking AI tool disclosures. The data is sourced from a centralized [Google Spreadsheet](https://docs.google.com/spreadsheets/d/17YEFTLMnJ2ddWnQDSxp4-ykfDH0Fy2KR1Cxj4q7rpUU/edit?gid=0#gid=0) 
