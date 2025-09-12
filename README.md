@@ -1,7 +1,16 @@
 # Purpose
-These documents provide a generalized overview of both commercial and open-source AI-assisted tools commonly used in visual effects (VFX) and animation (ANM) production workflows. The intent is to support vendors, studios, and artists in maintaining transparency with contractual or [security compliance requirements](#compliance-with-mpa-and-tpn-security-frameworks) that may restrict or require prior approval for the use of AI technologies within your company's workflows or pipelines that are used to deliver client content.
+These documents provide a generalized overview of both AI-enabled and AI-assisted tools, as well as fully generative AI systems, that are commonly used in visual effects (VFX) and animation (ANM) production workflows. The intent is to support vendors, studios, and artists in maintaining transparency with contractual and security compliance requirements (including MPA and TPN frameworks
+) that may restrict or require prior approval for the use of AI technologies in workflows and pipelines delivering client content.
 
-The tools described vary in form and integration. Some are embedded within industry-standard software, while others are standalone applications or interfaces layered on top of open-source or commercial platforms. These tools are typically used to enhance, accelerate, or automate specific production tasks. They do not generate original creative content autonomously, but rather assist artists in achieving production goals more efficiently and consistently.
+The tools described vary in form and integration. Some are embedded within industry-standard commercial software (e.g., motion tracking, denoising), while others are standalone applications or interfaces layered on top of open-source or proprietary platforms. Depending on category, these tools may:
+
+* ***AI-Enabled Features***: Traditional software functions that incorporate AI/ML under the hood but are standard parts of licensed tools (e.g., Adobe After Effects motion tracking).
+
+* ***AI-Assisted Tools***: Utilities that automate or accelerate discrete production tasks while still requiring human direction and oversight (e.g., Topaz AI upscaling, rotoscoping aids).
+
+* ***Generative AI Systems***: Applications that create new expressive content (images, video, audio, text) and always require client disclosure and prior approval before use in deliverables.
+
+This classification is intended to help ensure tool use is transparent, consistently documented, and aligned with both client agreements and industry compliance obligations, while also acknowledging that not all AI tools function in the same way or carry the same risk.
 
 Disclaimer:
 This list is not exhaustive and is subject to periodic updates as new tools emerge and existing technologies evolve. We recommend reviewing the latest version prior to each production cycle to ensure continued compliance and transparency.
