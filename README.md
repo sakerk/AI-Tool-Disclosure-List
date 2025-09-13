@@ -1,5 +1,14 @@
 # Background
-The Tool Disclosure List (TDL) is used to maintain transparency with contractual and [security compliance requirements](#compliance-with-mpa-and-tpn-security-frameworks) that may restrict or require prior approval for the use of AI/ML technologies in workflows or pipelines delivering client content.
+The Tool Disclosure List (TDL) is part of maintaining transparency with contractual and [security compliance requirements](#compliance-with-mpa-and-tpn-security-frameworks) that may restrict or require prior approval for the use of AI/ML technologies in workflows or pipelines delivering client content. 
+
+Beyond compliance, the TDL also serves as a foundation for an **ethically run AI pipeline**. By formally documenting the tools in use, the studio ensures:  
+
+- Clear alignment with client contracts, MPA Content Security Best Practices, and TPN audit requirements.  
+- Proactive disclosure of tools that require client approval before being used in production.  
+- Prevention of unauthorized or “shadow AI” use in creative workflows.  
+- Assurance that AI/ML use respects intellectual property rights, performer rights, and industry ethical standards.  
+- Reinforcement of client trust by ensuring that all outputs are produced under **documented, approved, and transparent conditions**.
+
 ### Introduction to AI/ML Tools  
 
 Here we provide an overview of **AI-enabled features**, **AI-assisted tools**, **Generative AI systems**, and **Cloud-based AI platforms** commonly encountered in visual effects (VFX) and animation (ANM) production workflows.  
@@ -103,7 +112,7 @@ Below is an **AI/ML Security Management Policy** template that you can use to de
 ## OR-05 – AI/ML Security Management Policy 
 
 | Unified Control No.                      | Mapped MPA 5.3.1 Controls (TPN+)                             | Mapped NIST Controls (NIST 800-171A-R3)                                                                                                    |
-| -----------------------------------------| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| -----------------------------------------| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | OR-05 – AI/ML Security Management Policy | OR-5.0 – Organizational Security – AI/ML Security Management | 3.11.1 (Risk Assessment), 3.11.2 (Vulnerabilities), 3.13.1 (Boundary Protection), 3.14.1 (Flaw Remediation), 3.15.1 (System Security Plan) |
 
 

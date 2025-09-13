@@ -200,12 +200,13 @@
     }
 
     // ---- Exporters ----
-    function toMarkdown(headers, rows){
+    function toMarkdown(headers, rows, withTitle){
       const escPipe = v => (v==null ? "" : String(v).replace(/\|/g, "\\|"));
       const headLine = "| " + headers.map(escPipe).join(" | ") + " |";
       const sepLine  = "| " + headers.map(()=>"---").join(" | ") + " |";
       const body = rows.map(r => "| " + r.map(escPipe).join(" | ") + " |").join("\n");
-      return headLine + "\n" + sepLine + "\n" + body + "\n";
+      const table = headLine + "\n" + sepLine + "\n" + body + "\n";
+      return (withTitle ? "# Tool Disclosure List\n\n" : "") + table;
     }
     function toCSV(headers, rows){
       function esc(v){
@@ -276,7 +277,7 @@
       const fmt = document.getElementById("fmt").value;
       const dataRows = rowsForExport();
       if(fmt === "md"){
-        const md = toMarkdown(HEADERS, dataRows);
+        const md = toMarkdown(HEADERS, dataRows, true); // add title
         downloadFile("ai-tool-disclosure-list.md", md, "text/markdown");
       } else {
         const csv = toCSV(HEADERS, dataRows);
