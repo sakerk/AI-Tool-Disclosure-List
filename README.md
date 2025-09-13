@@ -1,9 +1,10 @@
-# Purpose
+# Background
+The Tool Disclosure List (TDL) is used to maintain transparency with contractual and [security compliance requirements](#compliance-with-mpa-and-tpn-security-frameworks) that may restrict or require prior approval for the use of AI/ML technologies in workflows or pipelines delivering client content.
 ### Introduction to AI/ML Tools  
 
-This document provides an overview of **AI-enabled features**, **AI-assisted tools**, **generative AI systems**, and **cloud-based AI platforms** commonly encountered in visual effects (VFX) and animation (ANM) production workflows.  
+Here we provide an overview of **AI-enabled features**, **AI-assisted tools**, **Generative AI systems**, and **Cloud-based AI platforms** commonly encountered in visual effects (VFX) and animation (ANM) production workflows.  
 
-The purpose of this disclosure is to maintain transparency with contractual and [security compliance requirements](#compliance-with-mpa-and-tpn-security-frameworks) that may restrict or require prior approval for the use of AI/ML technologies in workflows or pipelines delivering client content.  
+  
 
 AI/ML tools vary widely in form, function, and integration:  
 - Some are **embedded features** within industry-standard commercial software.  
@@ -39,14 +40,14 @@ This classification ensures that AI/ML tool use is **transparent, consistently d
 
 <br>
 
-# THE LIST
+# Tool Disclosure List (TDL)
 
 Disclaimer:
 This list is not exhaustive and is subject to periodic updates as new tools emerge and existing technologies evolve. We recommend reviewing the latest version prior to each production cycle to ensure continued compliance and transparency.
 
-If you have any concerns, corrections, or additions, please submit them for review so we can maintain the accuracy and relevance of this resource.
+*If you have any concerns, corrections, or additions, please submit them for review so we can maintain the accuracy and relevance of this resource.*
 
-[TOOL DISCLOSURE LIST](https://sakerk.github.io/Tool-Disclosure-List/)
+### [Tool Disclosure List Site](https://sakerk.github.io/Tool-Disclosure-List/)
 <br>
 
 This is a searchable, community-driven resource for tracking AI tool disclosures. The data is sourced from a centralized [Google Spreadsheet](https://docs.google.com/spreadsheets/d/17YEFTLMnJ2ddWnQDSxp4-ykfDH0Fy2KR1Cxj4q7rpUU/edit?gid=0#gid=0) 
@@ -70,6 +71,7 @@ This table helps studios, legal departments, auditors, vendors, and artists main
 | **Output Handling Category** | Compliance handling bucket.     | *Standard Software Features – No Approval Required (Low)*<br>*Generative Content – Approval Required (High)*<br>*Assisted, Artist-Controlled – No Approval Required (Medium)*<br>*Internal Use / Non-Deliverable – No Approval Required (Low)*<br>*Disclosure Required – Producer Decides (Medium)* |
 | **Usage Description**           | Plain-English explanation of how the tool uses AI.              | *“AI assists with denoising and tracking in compositing tasks.”*                                                                                                                                                                                                                                    |
 | **Official Website**            | The tool’s official site or reference link.                     | *[https://www.example.com](https://www.example.com)*                                                                                                                                                                                              |
+
 <br>
 <br>
 
@@ -85,40 +87,49 @@ This table helps studios, legal departments, auditors, vendors, and artists main
 
 <br>
 <br>
-
-
-
-##  Compliance with MPA and TPN+ Security Frameworks
-
-The **Tool Disclosure List** is a core mechanism for demonstrating compliance with **MPA Content Security Best Practices v5.3.1 OR-5.0 (AI/ML Security Management)**. 
-
-### Specifically, it:
-
-1. **Supports Client Approval Requirements**
-
-   * Provides a formal inventory of AI/ML tools for **client review and approval** before use in production.
-
-   * Directly addresses the MPA requirement to **obtain client approval for AI/ML application use**.
-
-2. **Manages Risk Transparently**
-
-   * Categorizes tools by **risk level** (Low/Medium/High) and **AI Output Handling Category**, enabling structured risk management.
-
-   * Satisfies the MPA requirement to **identify and manage risks** associated with datasets, applications, and infrastructure changes.
-
-3. **Enforces Acceptable Use**
-
-   * Ensures only tools listed and approved are permitted, integrating AI/ML oversight into the **Acceptable Use Policy (OR-1.1)**.
-
-   * Meets the MPA requirement to **outline appropriate usage for AI/ML datasets and applications**.
-
-4. **Provides an Audit Trail**
-
-   * Serves as a **living document** — reviewed quarterly and updated upon introduction of new tools — ensuring **ongoing compliance and accountability**.
-
-   * Demonstrates to auditors and clients that the studio has an **active, documented process** for managing AI/ML security.
 <br>
 
+
+
+#  Compliance with MPA and TPN+ and other Security Frameworks
+
+The [Tool Disclosure List](https://sakerk.github.io/Tool-Disclosure-List/) is a core mechanism for demonstrating compliance with various security frameworks.
+Below is an **AI/ML Security Management Policy** template that you can use to demonstrate compliance. This Policy is part of another project based around building out a Security Governance Framework(SGF)
+
+<br>
+<br>
+<br>
+
+## OR-05 – AI/ML Security Management Policy 
+
+| Unified Control No.                      | Mapped MPA 5.3.1 Controls (TPN+)                             | Mapped NIST Controls (NIST 800-171A-R3)                                                                                                    |
+| :--------------------------------------- | :----------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
+| OR-05 – AI/ML Security Management Policy | OR-5.0 – Organizational Security – AI/ML Security Management | 3.11.1 (Risk Assessment), 3.11.2 (Vulnerabilities), 3.13.1 (Boundary Protection), 3.14.1 (Flaw Remediation), 3.15.1 (System Security Plan) |
+
+
+## 2. Scope
+This policy applies to all employees, contractors, and third parties using or integrating AI/ML tools, platforms, or services into [ INSERT COMPANY NAME HERE ], workflows, or deliverables.
+
+### Control Objective  
+
+
+Establish and maintain a formal **AI/ML Security Management Policy** that governs the use of internally developed and third-party licensed AI/ML systems to ensure compliance with client requirements, industry standards, and applicable laws.
+
+---
+
+### Policy Requirements  
+
+| **Policy Requirement** | **Details** |
+|-------------------------|-------------|
+| Policy Tailoring        | Document and regularly review AI/ML-specific risks and controls. |
+| Risk Management         | Assess risks to datasets, models, applications, network, and supporting systems. |
+| Client Approval         | Obtain client approval prior to using AI/ML applications in production workflows. |
+| Data Integrity          | Verify sources, integrity, and provenance of datasets before use. |
+| Compliance              | Align AI/ML usage with local laws, regulations, contracts, and client policies. |
+| Acceptable Use          | Define appropriate usage of AI/ML datasets, integrated with Acceptable Use Policy (OR-1.1). |
+| Sandboxing              | Restrict generative AI use to internally managed and sandboxed LLMs. |
+| Training                | Provide tailored AI/ML security training by job role. |
+| Tool Disclosure         | Maintain a Tool Disclosure List of all AI/ML tools in use, categorized by type, risk level, and approval status. |
 
 
 
