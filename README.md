@@ -103,7 +103,7 @@ Below is an **AI/ML Security Management Policy** template that you can use to de
 ## OR-05 – AI/ML Security Management Policy 
 
 | Unified Control No.                      | Mapped MPA 5.3.1 Controls (TPN+)                             | Mapped NIST Controls (NIST 800-171A-R3)                                                                                                    |
-| :--------------------------------------- | :----------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
+| -----------------------------------------| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | OR-05 – AI/ML Security Management Policy | OR-5.0 – Organizational Security – AI/ML Security Management | 3.11.1 (Risk Assessment), 3.11.2 (Vulnerabilities), 3.13.1 (Boundary Protection), 3.14.1 (Flaw Remediation), 3.15.1 (System Security Plan) |
 
 

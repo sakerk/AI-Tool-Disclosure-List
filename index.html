@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Tool Disclosure List</title>
+  <title>AI Tool Disclosure List</title>
   <style>
     :root {
       --bg:#0b0f14; --panel:#0f172a; --muted:#93a1b1; --text:#e6edf3; --line:#1f2937;
-      --accent:#60a5fa;
+      --accent:#60a5fa; --sel:#19324d;
     }
     html, body { height:100%; }
     body {
@@ -20,7 +20,7 @@
       background:var(--panel); border-bottom:1px solid var(--line);
       position:sticky; top:0; z-index:10;
     }
-    .title { margin:0; font-size:16px; font-weight:600; letter-spacing:.2px; }
+    .title { margin:0; font-size:16px; font-weight:600; letter-spacing:.2px; white-space:nowrap; }
     .spacer { flex:1; }
     .search {
       min-width:220px; max-width:420px; width:36ch;
@@ -35,9 +35,7 @@
     }
     .select { min-width:150px; }
     .btn:hover { background:#15325d; }
-    .wrap {
-      flex:1 1 auto; min-height:0; padding:10px;
-    }
+    .wrap { flex:1 1 auto; min-height:0; padding:10px; }
     .tableScroll {
       height:100%; overflow:auto; background:#0b1220; border:1px solid #263241; border-radius:12px;
     }
@@ -45,7 +43,10 @@
     th, td { padding:10px 12px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
     thead th { position:sticky; top:0; background:#0f172a; z-index:1; }
     tbody tr.hide { display:none; }
-    tbody tr:nth-child(odd) td { background:rgba(255,255,255,.01); }
+    tbody tr.selected td { background:var(--sel); }
+    tbody tr:nth-child(odd):not(.selected) td { background:rgba(255,255,255,.01); }
+    th.selCol, td.selCol { width:44px; text-align:center; }
+    input[type="checkbox"]{ width:16px; height:16px; cursor:pointer; }
     @media (max-width:720px){
       .title { display:none; }
       .search { flex:1; min-width:0; width:auto; }
@@ -56,7 +57,7 @@
 <body>
   <div class="app">
     <header class="topbar">
-      <h1 class="title">Tool Disclosure List</h1>
+      <h1 class="title">AI Tool Disclosure List</h1>
       <input id="q" class="search" type="search" placeholder="Search…" aria-label="Search table" />
       <div class="exportWrap">
         <select id="fmt" class="select" aria-label="Export format">
@@ -81,16 +82,16 @@
     const SHEET_ID = "17YEFTLMnJ2ddWnQDSxp4-ykfDH0Fy2KR1Cxj4q7rpUU";
     const GID = "0"; // change if your tab uses a different gid
 
-    // Will hold parsed data for export
+    // Data + selection state
     let HEADERS = [];
     let ROWS = [];
+    const SELECTED = new Set(); // stores row indices from ROWS
 
     // ---- Helpers ----
     function gvizUrl(id, gid){
       return "https://docs.google.com/spreadsheets/d/" + id + "/gviz/tq?gid=" + encodeURIComponent(gid) + "&tqx=out:json";
     }
     function parseGviz(text){
-      // Extract the JSON object inside google.visualization.Query.setResponse(...);
       const start = text.indexOf("setResponse(");
       if(start === -1) throw new Error("Unexpected response (is the sheet public?)");
       const open = text.indexOf("{", start);
@@ -98,54 +99,102 @@
       const json = text.slice(open, close + 1);
       return JSON.parse(json);
     }
+
     function renderTable(headers, rows){
       const tbl = document.getElementById("sheet");
       tbl.innerHTML = "";
       const thead = document.createElement("thead");
       const trh = document.createElement("tr");
+
+      // Selection master column
+      const thSel = document.createElement("th");
+      thSel.className = "selCol";
+      const master = document.createElement("input");
+      master.type = "checkbox";
+      master.title = "Select visible rows";
+      master.addEventListener("change", () => toggleSelectVisible(master.checked));
+      thSel.appendChild(master);
+      trh.appendChild(thSel);
+
+      // Header cells from sheet
       headers.forEach(h => {
         const th = document.createElement("th");
         th.textContent = h;
         trh.appendChild(th);
       });
       thead.appendChild(trh);
+
       const tbody = document.createElement("tbody");
-      rows.forEach(r => {
+      rows.forEach((r, idx) => {
         const tr = document.createElement("tr");
+        tr.dataset.index = String(idx);
+
+        // Selection checkbox
+        const tdSel = document.createElement("td");
+        tdSel.className = "selCol";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = SELECTED.has(idx);
+        cb.addEventListener("change", () => toggleRow(idx, tr, cb.checked));
+        tdSel.appendChild(cb);
+        tr.appendChild(tdSel);
+
+        // Data cells
         r.forEach(v => {
           const td = document.createElement("td");
           td.textContent = (v == null ? "" : v);
           tr.appendChild(td);
         });
+
+        if(SELECTED.has(idx)) tr.classList.add("selected");
         tbody.appendChild(tr);
       });
+
       tbl.appendChild(thead);
       tbl.appendChild(tbody);
+      updateCounts();
+    }
+
+    function toggleRow(idx, tr, on){
+      if(on){ SELECTED.add(idx); tr.classList.add("selected"); }
+      else { SELECTED.delete(idx); tr.classList.remove("selected"); }
+      updateCounts();
+    }
+
+    function toggleSelectVisible(on){
+      const visibleRows = Array.from(document.querySelectorAll("#sheet tbody tr:not(.hide)"));
+      visibleRows.forEach(tr => {
+        const idx = parseInt(tr.dataset.index, 10);
+        const cb = tr.querySelector('input[type="checkbox"]');
+        if(cb){ cb.checked = on; }
+        toggleRow(idx, tr, on);
+      });
     }
 
     // Search: simple contains across all cells, multi-term support
     function setupSearch(indexRows){
       const q = document.getElementById("q");
-      const countEl = document.getElementById("count");
-      const total = indexRows.length;
-      let last = "";
       const debounced = debounce(() => {
         const val = q.value.trim().toLowerCase();
-        if(val === last) return;
-        last = val;
         const terms = val.split(/\s+/).filter(Boolean);
-        let shown = 0;
         indexRows.forEach(({tr, text}) => {
           const hit = terms.every(t => text.includes(t));
           tr.classList.toggle("hide", !hit);
-          if(hit) shown++;
         });
-        countEl.textContent = (val ? ("Showing " + shown + " of " + total) : (total + " rows"));
+        updateCounts();
       }, 120);
       q.addEventListener("input", debounced);
-      // initial count
-      countEl.textContent = total + " rows";
+      updateCounts();
     }
+
+    function updateCounts(){
+      const countEl = document.getElementById("count");
+      const total = ROWS.length;
+      const visible = document.querySelectorAll("#sheet tbody tr:not(.hide)").length;
+      const selCount = SELECTED.size;
+      countEl.textContent = (visible === total ? (total + " rows") : ("Showing " + visible + " of " + total)) + " • " + selCount + " selected";
+    }
+
     function debounce(fn, ms){
       let t; return function(){ clearTimeout(t); t = setTimeout(fn, ms); };
     }
@@ -177,6 +226,18 @@
       URL.revokeObjectURL(a.href);
     }
 
+    function rowsForExport(){
+      // If any selected, export only selected; else export only visible rows (filtered by search)
+      const anySelected = SELECTED.size > 0;
+      if(anySelected){
+        const idxs = Array.from(SELECTED).sort((a,b)=>a-b);
+        return idxs.map(i => ROWS[i]);
+      } else {
+        const trs = Array.from(document.querySelectorAll("#sheet tbody tr:not(.hide)"));
+        return trs.map(tr => ROWS[parseInt(tr.dataset.index, 10)]);
+      }
+    }
+
     // ---- Main load ----
     async function load(){
       const res = await fetch(gvizUrl(SHEET_ID, GID));
@@ -199,10 +260,11 @@
 
       renderTable(headers, rows);
 
-      // Build search index on rendered rows (data-only; header remains sticky at top)
+      // Build search index on rendered rows (skip selection column)
       const tbodyRows = Array.from(document.querySelectorAll("#sheet tbody tr"));
       const indexRows = tbodyRows.map(tr => {
-        const text = Array.from(tr.cells).map(td => td.textContent.toLowerCase()).join(" ");
+        const text = Array.from(tr.cells).slice(1)
+          .map(td => td.textContent.toLowerCase()).join(" ");
         return { tr, text };
       });
       setupSearch(indexRows);
@@ -210,14 +272,15 @@
 
     // ---- Wire UI ----
     document.getElementById("exportBtn").addEventListener("click", () => {
-      const fmt = document.getElementById("fmt").value;
       if(!HEADERS.length) return;
+      const fmt = document.getElementById("fmt").value;
+      const dataRows = rowsForExport();
       if(fmt === "md"){
-        const md = toMarkdown(HEADERS, ROWS);
-        downloadFile("tool-disclosure-list.md", md, "text/markdown");
+        const md = toMarkdown(HEADERS, dataRows);
+        downloadFile("ai-tool-disclosure-list.md", md, "text/markdown");
       } else {
-        const csv = toCSV(HEADERS, ROWS);
-        downloadFile("tool-disclosure-list.csv", csv, "text/csv");
+        const csv = toCSV(HEADERS, dataRows);
+        downloadFile("ai-tool-disclosure-list.csv", csv, "text/csv");
       }
     });
 
