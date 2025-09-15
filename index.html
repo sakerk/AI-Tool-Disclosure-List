@@ -7,7 +7,7 @@
   <style>
     :root {
       --bg:#0b0f14; --panel:#0f172a; --muted:#93a1b1; --text:#e6edf3; --line:#1f2937;
-      --accent:#60a5fa; --sel:#19324d;
+      --accent:#60a5fa; --sel:#19324d; --hover:#0f2236;
     }
     html, body { height:100%; }
     body {
@@ -16,9 +16,9 @@
     }
     .app { height:100vh; display:flex; flex-direction:column; }
     .topbar {
+      position:sticky; top:0; z-index:20;
       display:flex; gap:10px; align-items:center; padding:10px 12px;
       background:var(--panel); border-bottom:1px solid var(--line);
-      position:sticky; top:0; z-index:10;
     }
     .title { margin:0; font-size:16px; font-weight:600; letter-spacing:.2px; white-space:nowrap; }
     .spacer { flex:1; }
@@ -28,29 +28,51 @@
       border:1px solid #263241; background:#0b1220; color:var(--text);
     }
     .count { font-size:12px; color:var(--muted); white-space:nowrap; }
-    .exportWrap { display:flex; gap:8px; align-items:center; }
+    .exportWrap, .columnsWrap { display:flex; gap:8px; align-items:center; position:relative; }
     .select, .btn {
       appearance:none; border:1px solid #27415f; background:#0f213c; color:#dbeafe;
       padding:10px 12px; border-radius:12px; cursor:pointer;
     }
-    .select { min-width:150px; }
     .btn:hover { background:#15325d; }
+    .select { min-width:150px; }
+    .colsBtn { white-space:nowrap; }
+    .colsPanel {
+      display:none; position:absolute; top:42px; right:0; z-index:30;
+      min-width:240px; max-height:60vh; overflow:auto;
+      background:#0b1220; border:1px solid #263241; border-radius:12px; padding:10px;
+      box-shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    .colsPanel.open { display:block; }
+    .colsPanel label { display:flex; align-items:center; gap:8px; padding:6px 4px; cursor:pointer; }
+    .colsPanel .note { margin-top:8px; color:var(--muted); font-size:12px; }
     .wrap { flex:1 1 auto; min-height:0; padding:10px; }
     .tableScroll {
       height:100%; overflow:auto; background:#0b1220; border:1px solid #263241; border-radius:12px;
     }
-    table { width:100%; border-collapse:collapse; }
+    table { width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; }
     th, td { padding:10px 12px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
     thead th { position:sticky; top:0; background:#0f172a; z-index:1; }
     tbody tr.hide { display:none; }
     tbody tr.selected td { background:var(--sel); }
-    tbody tr:nth-child(odd):not(.selected) td { background:rgba(255,255,255,.01); }
-    th.selCol, td.selCol { width:44px; text-align:center; }
+    tbody tr:hover td { background:var(--hover); }
+    tbody tr.selected:hover td { background:var(--sel); }
+    th.selCol, td.selCol { width:44px; min-width:44px; max-width:44px; text-align:center; }
     input[type="checkbox"]{ width:16px; height:16px; cursor:pointer; }
-    @media (max-width:720px){
+    /* Column resizer handle */
+    .resizer {
+      position:absolute; top:0; right:-4px; width:8px; height:100%;
+      cursor:col-resize; user-select:none;
+      background:linear-gradient(to right, transparent 0, transparent 3px, #1f2937 3px, #1f2937 5px, transparent 5px);
+      opacity:.3;
+    }
+    th { position:sticky; top:0; background:#0f172a; }
+    th .headerInner { position:relative; display:block; padding-right:10px; }
+    /* Hide columns by class */
+    .hide-col { display:none !important; }
+    @media (max-width:900px){
       .title { display:none; }
       .search { flex:1; min-width:0; width:auto; }
-      .select { display:none; } /* keep UI compact on small screens */
+      .select { display:none; } /* compact UI on small screens */
     }
   </style>
 </head>
@@ -59,6 +81,10 @@
     <header class="topbar">
       <h1 class="title">AI Tool Disclosure List</h1>
       <input id="q" class="search" type="search" placeholder="Search…" aria-label="Search table" />
+      <div class="columnsWrap">
+        <button id="colsBtn" class="btn colsBtn">Columns ▾</button>
+        <div id="colsPanel" class="colsPanel" role="dialog" aria-label="Toggle columns"></div>
+      </div>
       <div class="exportWrap">
         <select id="fmt" class="select" aria-label="Export format">
           <option value="md">Markdown (.md)</option>
@@ -72,20 +98,27 @@
 
     <div class="wrap">
       <div class="tableScroll">
-        <table id="sheet"></table>
+        <table id="sheet">
+          <colgroup id="colgroup">
+            <col class="col-sel">
+          </colgroup>
+        </table>
       </div>
     </div>
   </div>
 
   <script>
-    // ---- Config: hard-coded to your Google Sheet ----
+    // ---- Config ----
     const SHEET_ID = "17YEFTLMnJ2ddWnQDSxp4-ykfDH0Fy2KR1Cxj4q7rpUU";
-    const GID = "0"; // change if your tab uses a different gid
+    const GID = "0"; // change for a different tab
 
-    // Data + selection state
+    // State
     let HEADERS = [];
     let ROWS = [];
-    const SELECTED = new Set(); // stores row indices from ROWS
+    const SELECTED = new Set(); // row indices
+    let COL_VISIBLE = []; // boolean per column (not including selection column)
+    let COL_WIDTHS = []; // pixel widths or null
+    let INDEX_ROWS = []; // for searching
 
     // ---- Helpers ----
     function gvizUrl(id, gid){
@@ -100,13 +133,17 @@
       return JSON.parse(json);
     }
 
+    // ---- Rendering ----
     function renderTable(headers, rows){
       const tbl = document.getElementById("sheet");
-      tbl.innerHTML = "";
+      const colgroup = document.getElementById("colgroup");
+      tbl.innerHTML = ""; // reset
+      colgroup.innerHTML = '<col class="col-sel">'; // reset colgroup (keep selection col)
+
       const thead = document.createElement("thead");
       const trh = document.createElement("tr");
 
-      // Selection master column
+      // Selection master
       const thSel = document.createElement("th");
       thSel.className = "selCol";
       const master = document.createElement("input");
@@ -116,11 +153,25 @@
       thSel.appendChild(master);
       trh.appendChild(thSel);
 
-      // Header cells from sheet
-      headers.forEach(h => {
+      // Header cells + resizers
+      headers.forEach((h, i) => {
         const th = document.createElement("th");
-        th.textContent = h;
+        th.dataset.col = String(i);
+        const span = document.createElement("span");
+        span.className = "headerInner";
+        span.textContent = h || ("Column " + (i+1));
+        th.appendChild(span);
+        const handle = document.createElement("div");
+        handle.className = "resizer";
+        handle.addEventListener("mousedown", startResize.bind(null, i));
+        handle.addEventListener("dblclick", autoFitColumn.bind(null, i));
+        th.appendChild(handle);
         trh.appendChild(th);
+
+        // add a <col> for this column for sizing
+        const c = document.createElement("col");
+        c.dataset.col = String(i);
+        colgroup.appendChild(c);
       });
       thead.appendChild(trh);
 
@@ -129,7 +180,7 @@
         const tr = document.createElement("tr");
         tr.dataset.index = String(idx);
 
-        // Selection checkbox
+        // selection checkbox
         const tdSel = document.createElement("td");
         tdSel.className = "selCol";
         const cb = document.createElement("input");
@@ -139,9 +190,10 @@
         tdSel.appendChild(cb);
         tr.appendChild(tdSel);
 
-        // Data cells
-        r.forEach(v => {
+        // data cells
+        r.forEach((v, i) => {
           const td = document.createElement("td");
+          td.dataset.col = String(i);
           td.textContent = (v == null ? "" : v);
           tr.appendChild(td);
         });
@@ -152,39 +204,116 @@
 
       tbl.appendChild(thead);
       tbl.appendChild(tbody);
+
+      applyColumnVisibility();
+      applyColumnWidths();
+      buildIndexRows();
       updateCounts();
     }
 
+    function applyColumnVisibility(){
+      const ths = document.querySelectorAll("#sheet thead th[data-col]");
+      const tds = document.querySelectorAll("#sheet tbody td[data-col]");
+      ths.forEach(th => {
+        const i = parseInt(th.dataset.col, 10);
+        th.classList.toggle("hide-col", COL_VISIBLE[i] === false);
+      });
+      tds.forEach(td => {
+        const i = parseInt(td.dataset.col, 10);
+        td.classList.toggle("hide-col", COL_VISIBLE[i] === false);
+      });
+    }
+
+    function applyColumnWidths(){
+      const colgroup = document.getElementById("colgroup");
+      COL_WIDTHS.forEach((w, i) => {
+        const col = colgroup.querySelector(`col[data-col="${i}"]`);
+        if(col){
+          col.style.width = (w ? w + "px" : "");
+        }
+      });
+    }
+
+    // ---- Resizing ----
+    let resizeState = null;
+    function startResize(i, ev){
+      ev.preventDefault();
+      const th = document.querySelector(`#sheet thead th[data-col="${i}"]`);
+      const col = document.querySelector(`#colgroup col[data-col="${i}"]`);
+      const startX = ev.clientX;
+      const startW = th.getBoundingClientRect().width;
+      resizeState = { i, startX, startW, col };
+      window.addEventListener("mousemove", onResizeMove);
+      window.addEventListener("mouseup", endResize);
+      document.body.style.cursor = "col-resize";
+    }
+    function onResizeMove(ev){
+      if(!resizeState) return;
+      const { i, startX, startW, col } = resizeState;
+      const w = Math.max(60, Math.round(startW + (ev.clientX - startX)));
+      COL_WIDTHS[i] = w;
+      if(col) col.style.width = w + "px";
+    }
+    function endResize(){
+      window.removeEventListener("mousemove", onResizeMove);
+      window.removeEventListener("mouseup", endResize);
+      document.body.style.cursor = "";
+      resizeState = null;
+    }
+    function autoFitColumn(i){
+      // Find max content width of header + cells
+      const th = document.querySelector(`#sheet thead th[data-col="${i}"]`);
+      const cells = Array.from(document.querySelectorAll(`#sheet tbody td[data-col="${i}"]`));
+      const measure = el => {
+        const r = el.getBoundingClientRect();
+        return Math.ceil(r.width);
+      };
+      let maxW = measure(th);
+      cells.forEach(td => { maxW = Math.max(maxW, measure(td)); });
+      // add a little padding
+      maxW = Math.min(Math.max(80, maxW + 12), 800);
+      COL_WIDTHS[i] = maxW;
+      applyColumnWidths();
+    }
+
+    // ---- Selection ----
     function toggleRow(idx, tr, on){
       if(on){ SELECTED.add(idx); tr.classList.add("selected"); }
       else { SELECTED.delete(idx); tr.classList.remove("selected"); }
       updateCounts();
     }
-
     function toggleSelectVisible(on){
-      const visibleRows = Array.from(document.querySelectorAll("#sheet tbody tr:not(.hide)"));
+      const visibleRows = Array.from(document.querySelectorAll("#sheet tbody tr:not(.hide)") );
       visibleRows.forEach(tr => {
         const idx = parseInt(tr.dataset.index, 10);
-        const cb = tr.querySelector('input[type="checkbox"]');
+        const cb = tr.querySelector('td.selCol input[type="checkbox"]');
         if(cb){ cb.checked = on; }
         toggleRow(idx, tr, on);
       });
     }
 
-    // Search: simple contains across all cells, multi-term support
-    function setupSearch(indexRows){
+    // ---- Search ----
+    function buildIndexRows(){
+      const tbodyRows = Array.from(document.querySelectorAll("#sheet tbody tr"));
+      INDEX_ROWS = tbodyRows.map(tr => {
+        // only include visible data cells (exclude selection and hidden columns)
+        const text = Array.from(tr.querySelectorAll('td[data-col]:not(.hide-col)'))
+          .map(td => td.textContent.toLowerCase()).join(" ");
+        return { tr, text };
+      });
+    }
+    function setupSearch(){
       const q = document.getElementById("q");
       const debounced = debounce(() => {
         const val = q.value.trim().toLowerCase();
         const terms = val.split(/\s+/).filter(Boolean);
-        indexRows.forEach(({tr, text}) => {
+        INDEX_ROWS.forEach(({tr, text}) => {
           const hit = terms.every(t => text.includes(t));
           tr.classList.toggle("hide", !hit);
         });
         updateCounts();
       }, 120);
       q.addEventListener("input", debounced);
-      updateCounts();
     }
 
     function updateCounts(){
@@ -199,7 +328,47 @@
       let t; return function(){ clearTimeout(t); t = setTimeout(fn, ms); };
     }
 
-    // ---- Exporters ----
+    // ---- Columns panel ----
+    function buildColumnsPanel(){
+      const panel = document.getElementById("colsPanel");
+      panel.innerHTML = "";
+      HEADERS.forEach((h, i) => {
+        const label = document.createElement("label");
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = COL_VISIBLE[i] !== false;
+        cb.addEventListener("change", () => {
+          COL_VISIBLE[i] = cb.checked;
+          applyColumnVisibility();
+          buildIndexRows();
+        });
+        const txt = document.createElement("span");
+        txt.textContent = h || ("Column " + (i+1));
+        label.appendChild(cb);
+        label.appendChild(txt);
+        panel.appendChild(label);
+      });
+      const note = document.createElement("div");
+      note.className = "note";
+      note.textContent = "Tip: Double‑click a header’s right edge to auto‑fit. Drag to resize.";
+      panel.appendChild(note);
+    }
+
+    function setupColumnsUI(){
+      const btn = document.getElementById("colsBtn");
+      const panel = document.getElementById("colsPanel");
+      btn.addEventListener("click", () => {
+        panel.classList.toggle("open");
+      });
+      // click outside to close
+      document.addEventListener("click", (e) => {
+        if(!panel.contains(e.target) && !btn.contains(e.target)){
+          panel.classList.remove("open");
+        }
+      });
+    }
+
+    // ---- Export ----
     function toMarkdown(headers, rows, withTitle){
       const escPipe = v => (v==null ? "" : String(v).replace(/\|/g, "\\|"));
       const headLine = "| " + headers.map(escPipe).join(" | ") + " |";
@@ -226,9 +395,7 @@
       a.click();
       URL.revokeObjectURL(a.href);
     }
-
     function rowsForExport(){
-      // If any selected, export only selected; else export only visible rows (filtered by search)
       const anySelected = SELECTED.size > 0;
       if(anySelected){
         const idxs = Array.from(SELECTED).sort((a,b)=>a-b);
@@ -237,6 +404,17 @@
         const trs = Array.from(document.querySelectorAll("#sheet tbody tr:not(.hide)"));
         return trs.map(tr => ROWS[parseInt(tr.dataset.index, 10)]);
       }
+    }
+    function visibleColumns(){
+      const idxs = [];
+      COL_VISIBLE.forEach((v, i) => { if(v !== false) idxs.push(i); });
+      return idxs;
+    }
+    function filterColumns(headers, rows){
+      const cols = visibleColumns();
+      const fh = cols.map(i => headers[i]);
+      const fr = rows.map(r => cols.map(i => r[i]));
+      return { fh, fr };
     }
 
     // ---- Main load ----
@@ -258,17 +436,13 @@
 
       HEADERS = headers;
       ROWS = rows;
+      COL_VISIBLE = headers.map(()=>true);
+      COL_WIDTHS = headers.map(()=>null);
 
       renderTable(headers, rows);
-
-      // Build search index on rendered rows (skip selection column)
-      const tbodyRows = Array.from(document.querySelectorAll("#sheet tbody tr"));
-      const indexRows = tbodyRows.map(tr => {
-        const text = Array.from(tr.cells).slice(1)
-          .map(td => td.textContent.toLowerCase()).join(" ");
-        return { tr, text };
-      });
-      setupSearch(indexRows);
+      buildColumnsPanel();
+      setupColumnsUI();
+      setupSearch();
     }
 
     // ---- Wire UI ----
@@ -276,16 +450,17 @@
       if(!HEADERS.length) return;
       const fmt = document.getElementById("fmt").value;
       const dataRows = rowsForExport();
+      const { fh, fr } = filterColumns(HEADERS, dataRows);
       if(fmt === "md"){
-        const md = toMarkdown(HEADERS, dataRows, true); // add title
+        const md = toMarkdown(fh, fr, true);
         downloadFile("ai-tool-disclosure-list.md", md, "text/markdown");
       } else {
-        const csv = toCSV(HEADERS, dataRows);
+        const csv = toCSV(fh, fr);
         downloadFile("ai-tool-disclosure-list.csv", csv, "text/csv");
       }
     });
 
-    // Kick off automatically
+    // Go
     load().catch(err => {
       const tbl = document.getElementById("sheet");
       tbl.innerHTML = "<thead><tr><th>Error</th></tr></thead><tbody><tr><td>Failed to load Google Sheet: " + (err && err.message ? err.message : err) + "</td></tr></tbody>";
