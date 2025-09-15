@@ -98,11 +98,7 @@
 
     <div class="wrap">
       <div class="tableScroll">
-        <table id="sheet">
-          <colgroup id="colgroup">
-            <col class="col-sel">
-          </colgroup>
-        </table>
+        <table id="sheet"></table>
       </div>
     </div>
   </div>
@@ -116,7 +112,7 @@
     let HEADERS = [];
     let ROWS = [];
     const SELECTED = new Set(); // row indices
-    let COL_VISIBLE = []; // boolean per column (not including selection column)
+    let COL_VISIBLE = []; // boolean per column
     let COL_WIDTHS = []; // pixel widths or null
     let INDEX_ROWS = []; // for searching
 
@@ -136,9 +132,14 @@
     // ---- Rendering ----
     function renderTable(headers, rows){
       const tbl = document.getElementById("sheet");
-      const colgroup = document.getElementById("colgroup");
-      tbl.innerHTML = ""; // reset
-      colgroup.innerHTML = '<col class="col-sel">'; // reset colgroup (keep selection col)
+      // Clear and rebuild table skeleton: colgroup + thead + tbody
+      tbl.innerHTML = "";
+      const colgroup = document.createElement("colgroup");
+      colgroup.id = "colgroup";
+      const selCol = document.createElement("col");
+      selCol.className = "col-sel";
+      colgroup.appendChild(selCol);
+      tbl.appendChild(colgroup);
 
       const thead = document.createElement("thead");
       const trh = document.createElement("tr");
@@ -226,11 +227,15 @@
 
     function applyColumnWidths(){
       const colgroup = document.getElementById("colgroup");
+      if(!colgroup) return; // guard against null
       COL_WIDTHS.forEach((w, i) => {
-        const col = colgroup.querySelector(`col[data-col="${i}"]`);
-        if(col){
-          col.style.width = (w ? w + "px" : "");
+        let col = colgroup.querySelector(`col[data-col="${i}"]`);
+        if(!col){
+          col = document.createElement("col");
+          col.dataset.col = String(i);
+          colgroup.appendChild(col);
         }
+        col.style.width = (w ? w + "px" : "");
       });
     }
 
@@ -261,16 +266,11 @@
       resizeState = null;
     }
     function autoFitColumn(i){
-      // Find max content width of header + cells
       const th = document.querySelector(`#sheet thead th[data-col="${i}"]`);
       const cells = Array.from(document.querySelectorAll(`#sheet tbody td[data-col="${i}"]`));
-      const measure = el => {
-        const r = el.getBoundingClientRect();
-        return Math.ceil(r.width);
-      };
+      const measure = el => Math.ceil(el.getBoundingClientRect().width);
       let maxW = measure(th);
       cells.forEach(td => { maxW = Math.max(maxW, measure(td)); });
-      // add a little padding
       maxW = Math.min(Math.max(80, maxW + 12), 800);
       COL_WIDTHS[i] = maxW;
       applyColumnWidths();
@@ -296,7 +296,6 @@
     function buildIndexRows(){
       const tbodyRows = Array.from(document.querySelectorAll("#sheet tbody tr"));
       INDEX_ROWS = tbodyRows.map(tr => {
-        // only include visible data cells (exclude selection and hidden columns)
         const text = Array.from(tr.querySelectorAll('td[data-col]:not(.hide-col)'))
           .map(td => td.textContent.toLowerCase()).join(" ");
         return { tr, text };
@@ -360,7 +359,6 @@
       btn.addEventListener("click", () => {
         panel.classList.toggle("open");
       });
-      // click outside to close
       document.addEventListener("click", (e) => {
         if(!panel.contains(e.target) && !btn.contains(e.target)){
           panel.classList.remove("open");
