@@ -8,8 +8,12 @@ Beyond compliance, the TDL also serves as a foundation for an **ethically run AI
 - Prevention of unauthorized or “shadow AI” use in creative workflows.  
 - Assurance that AI/ML use respects intellectual property rights, performer rights, and industry ethical standards.  
 - Reinforcement of client trust by ensuring that all outputs are produced under **documented, approved, and transparent conditions**.
+<br>
+<br>
+<br>
 
-### Introduction to AI/ML Tools  
+
+# Introduction to AI/ML Tools  
 
 Here we provide an overview of **AI-enabled features**, **AI-assisted tools**, **Generative AI systems**, and **Cloud-based AI platforms** commonly encountered in visual effects (VFX) and animation (ANM) production workflows.  
 
@@ -44,9 +48,6 @@ This classification ensures that AI/ML tool use is **transparent, consistently d
 
 
 <br>
-
-
-
 <br>
 
 # Tool Disclosure List (TDL)
@@ -100,46 +101,25 @@ This table helps studios, legal departments, auditors, vendors, and artists main
 
 
 
-#  Compliance with MPA and TPN+ and other Security Frameworks
+# Compliance with MPA/TPN+ and NIST 800-171A-R3
 
-The [Tool Disclosure List](https://sakerk.github.io/Tool-Disclosure-List/) is a core mechanism for demonstrating compliance with various security frameworks.
-Below is an **AI/ML Security Management Policy** template that you can use to demonstrate compliance. This Policy is part of another project based around building out a Security Governance Framework(SGF)
+The [Tool Disclosure List](https://sakerk.github.io/Tool-Disclosure-List/) is a core assessment objective for demonstrating compliance. These policies and procedures should be incorporated into your companies security governance framework (SGF).
 
+MPA/TPN+ Control# OR-5.0 – Organizational Security – AI/ML Security Management
 <br>
 <br>
 <br>
 
-## OR-05 – AI/ML Security Management Policy 
+[**AI/ML Security Management Policy**](policy/OR-05_AI-ML_Security_Management_Policy.md) 
 
-| Unified Control No.                      | Mapped MPA 5.3.1 Controls (TPN+)                             | Mapped NIST Controls (NIST 800-171A-R3)                                                                                                    |
-| -----------------------------------------| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| OR-05 – AI/ML Security Management Policy | OR-5.0 – Organizational Security – AI/ML Security Management | 3.11.1 (Risk Assessment), 3.11.2 (Vulnerabilities), 3.13.1 (Boundary Protection), 3.14.1 (Flaw Remediation), 3.15.1 (System Security Plan) |
-
-
-## 2. Scope
-This policy applies to all employees, contractors, and third parties using or integrating AI/ML tools, platforms, or services into [ INSERT COMPANY NAME HERE ], workflows, or deliverables.
-
-### Control Objective  
-
-
-Establish and maintain a formal **AI/ML Security Management Policy** that governs the use of internally developed and third-party licensed AI/ML systems to ensure compliance with client requirements, industry standards, and applicable laws.
-
----
-
-### Policy Requirements  
-
-| **Policy Requirement** | **Details** |
-|-------------------------|-------------|
+| **Assessment Objectives** | **Details** |
+|---------------------------|-------------|
 | Policy Tailoring        | Document and regularly review AI/ML-specific risks and controls. |
 | Risk Management         | Assess risks to datasets, models, applications, network, and supporting systems. |
-| Client Approval         | Obtain client approval prior to using AI/ML applications in production workflows. |
+| [Client Approval](policy/OR-05_Client_AI_Email_Template.md)         | Obtain client approval prior to using AI/ML applications in production workflows. |
 | Data Integrity          | Verify sources, integrity, and provenance of datasets before use. |
 | Compliance              | Align AI/ML usage with local laws, regulations, contracts, and client policies. |
 | Acceptable Use          | Define appropriate usage of AI/ML datasets, integrated with Acceptable Use Policy (OR-1.1). |
 | Sandboxing              | Restrict generative AI use to internally managed and sandboxed LLMs. |
 | Training                | Provide tailored AI/ML security training by job role. |
-| Tool Disclosure         | Maintain a Tool Disclosure List of all AI/ML tools in use, categorized by type, risk level, and approval status. |
-
-
-
-
+| [Tool Disclosure](policy/OR-05_AI-ML_Security_Management_Policy.md)          | Maintain a Tool Disclosure List of all AI/ML tools in use, categorized by type, risk level, and approval status. |
