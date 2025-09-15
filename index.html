@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI Tool Disclosure List</title>
+  <title>Tool Disclosure List</title>
   <style>
     :root {
       --bg:#0b0f14; --panel:#0f172a; --muted:#93a1b1; --text:#e6edf3; --line:#1f2937;
@@ -79,7 +79,7 @@
 <body>
   <div class="app">
     <header class="topbar">
-      <h1 class="title">AI Tool Disclosure List</h1>
+      <h1 id="pageTitle" class="title">Tool Disclosure List</h1>
       <input id="q" class="search" type="search" placeholder="Search…" aria-label="Search table" />
       <div class="columnsWrap">
         <button id="colsBtn" class="btn colsBtn">Columns ▾</button>
@@ -98,7 +98,11 @@
 
     <div class="wrap">
       <div class="tableScroll">
-        <table id="sheet"></table>
+        <table id="sheet">
+          <colgroup id="colgroup">
+            <col class="col-sel">
+          </colgroup>
+        </table>
       </div>
     </div>
   </div>
@@ -109,12 +113,58 @@
     const GID = "0"; // change for a different tab
 
     // State
+    let PAGE_TITLE = "Tool Disclosure List";
     let HEADERS = [];
     let ROWS = [];
     const SELECTED = new Set(); // row indices
     let COL_VISIBLE = []; // boolean per column
     let COL_WIDTHS = []; // pixel widths or null
     let INDEX_ROWS = []; // for searching
+
+    // ---- Title from Google Sheets (JSONP feed) ----
+    function setPageTitle(t){
+      if(!t) return;
+      PAGE_TITLE = t;
+      document.title = t;
+      const h1 = document.getElementById("pageTitle");
+      if(h1) h1.textContent = t;
+    }
+    function fetchDocTitleJSONP(sheetId, timeoutMs=5000){
+      return new Promise((resolve, reject) => {
+        const cb = "__sheetMeta_" + Math.random().toString(36).slice(2);
+        const s = document.createElement("script");
+        const src = "https://spreadsheets.google.com/feeds/worksheets/" + sheetId + "/public/basic?alt=json-in-script&callback=" + cb;
+        let done = false;
+        const timer = setTimeout(() => {
+          if(done) return;
+          done = true;
+          cleanup();
+          reject(new Error("Title fetch timeout"));
+        }, timeoutMs);
+        function cleanup(){
+          clearTimeout(timer);
+          delete window[cb];
+          s.remove();
+        }
+        window[cb] = function(data){
+          if(done) return;
+          done = true;
+          try {
+            const t = data && data.feed && data.feed.title && data.feed.title.$t;
+            if(t) resolve(t); else reject(new Error("No title in feed"));
+          } catch(e){ reject(e); }
+          finally { cleanup(); }
+        };
+        s.onerror = function(){
+          if(done) return;
+          done = true;
+          cleanup();
+          reject(new Error("Title fetch error"));
+        };
+        s.src = src;
+        document.head.appendChild(s);
+      });
+    }
 
     // ---- Helpers ----
     function gvizUrl(id, gid){
@@ -132,7 +182,7 @@
     // ---- Rendering ----
     function renderTable(headers, rows){
       const tbl = document.getElementById("sheet");
-      // Clear and rebuild table skeleton: colgroup + thead + tbody
+      // rebuild skeleton
       tbl.innerHTML = "";
       const colgroup = document.createElement("colgroup");
       colgroup.id = "colgroup";
@@ -227,7 +277,7 @@
 
     function applyColumnWidths(){
       const colgroup = document.getElementById("colgroup");
-      if(!colgroup) return; // guard against null
+      if(!colgroup) return;
       COL_WIDTHS.forEach((w, i) => {
         let col = colgroup.querySelector(`col[data-col="${i}"]`);
         if(!col){
@@ -283,7 +333,7 @@
       updateCounts();
     }
     function toggleSelectVisible(on){
-      const visibleRows = Array.from(document.querySelectorAll("#sheet tbody tr:not(.hide)") );
+      const visibleRows = Array.from(document.querySelectorAll("#sheet tbody tr:not(.hide)"));
       visibleRows.forEach(tr => {
         const idx = parseInt(tr.dataset.index, 10);
         const cb = tr.querySelector('td.selCol input[type="checkbox"]');
@@ -367,19 +417,19 @@
     }
 
     // ---- Export ----
-    function toMarkdown(headers, rows, withTitle){
+    function toMarkdown(headers, rows, titleText){
       const escPipe = v => (v==null ? "" : String(v).replace(/\|/g, "\\|"));
       const headLine = "| " + headers.map(escPipe).join(" | ") + " |";
       const sepLine  = "| " + headers.map(()=>"---").join(" | ") + " |";
       const body = rows.map(r => "| " + r.map(escPipe).join(" | ") + " |").join("\n");
       const table = headLine + "\n" + sepLine + "\n" + body + "\n";
-      return (withTitle ? "# Tool Disclosure List\n\n" : "") + table;
+      return (titleText ? ("# " + titleText + "\n\n") : "") + table;
     }
     function toCSV(headers, rows){
       function esc(v){
         if(v==null) v = "";
         v = String(v);
-        if(/[",\n]/.test(v)){ v = '"' + v.replace(/"/g, '""') + '"'; }
+        if(/[\",\n]/.test(v)){ v = '\"' + v.replace(/\"/g, '\"\"') + '\"'; }
         return v;
       }
       const all = [headers, ...rows];
@@ -417,6 +467,14 @@
 
     // ---- Main load ----
     async function load(){
+      // Try to fetch the Google Doc title (best effort)
+      try {
+        const title = await fetchDocTitleJSONP(SHEET_ID, 6000);
+        if(title) setPageTitle(title);
+      } catch(_) {
+        // ignore; keep default PAGE_TITLE
+      }
+
       const res = await fetch(gvizUrl(SHEET_ID, GID));
       if(!res.ok) throw new Error("HTTP " + res.status);
       const text = await res.text();
@@ -450,7 +508,7 @@
       const dataRows = rowsForExport();
       const { fh, fr } = filterColumns(HEADERS, dataRows);
       if(fmt === "md"){
-        const md = toMarkdown(fh, fr, true);
+        const md = toMarkdown(fh, fr, PAGE_TITLE);
         downloadFile("ai-tool-disclosure-list.md", md, "text/markdown");
       } else {
         const csv = toCSV(fh, fr);

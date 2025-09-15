@@ -1,5 +1,5 @@
 # Background
-The Tool Disclosure List (TDL) is part of maintaining transparency with contractual and [security compliance requirements](#compliance-with-mpa-and-tpn-security-frameworks) that may restrict or require prior approval for the use of AI/ML technologies in workflows or pipelines delivering client content. 
+The Tool Disclosure List (TDL) is part of maintaining transparency with contractual and [security compliance requirements](#compliance-with-mpatpn-and-nist-800-171a-r3) that may restrict or require prior approval for the use of AI/ML technologies in workflows or pipelines delivering client content. 
 
 Beyond compliance, the TDL also serves as a foundation for an **ethically run AI pipeline**. By formally documenting the tools in use, the studio ensures:  
 
