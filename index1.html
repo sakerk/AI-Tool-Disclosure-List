@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tool Disclosure List</title>
+  <style>
+    :root {
+      --bg:#0b0f14; --panel:#0f172a; --muted:#93a1b1; --text:#e6edf3; --line:#1f2937;
+      --accent:#60a5fa; --sel:#19324d; --hover:#0f2236; --danger:#ef4444; --ok:#22c55e;
+    }
+    html, body { height:100%; }
+    body {
+      margin:0; background:var(--bg); color:var(--text);
+      font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    .app { height:100vh; display:flex; flex-direction:column; }
+    .topbar {
+      position:sticky; top:0; z-index:20;
+      display:flex; gap:10px; align-items:center; padding:10px 12px;
+      background:var(--panel); border-bottom:1px solid var(--line);
+    }
+    .title { margin:0; font-size:16px; font-weight:600; letter-spacing:.2px; white-space:nowrap; }
+    .spacer { flex:1; }
+    .search {
+      min-width:220px; max-width:420px; width:36ch;
+      padding:10px 12px; border-radius:12px; outline:none;
+      border:1px solid #263241; background:#0b1220; color:var(--text);
+    }
+    .count { font-size:12px; color:var(--muted); white-space:nowrap; }
+    .exportWrap, .columnsWrap { display:flex; gap:8px; align-items:center; position:relative; }
+    .select, .btn {
+      appearance:none; border:1px solid #27415f; background:#0f213c; color:#dbeafe;
+      padding:10px 12px; border-radius:12px; cursor:pointer;
+    }
+    .btn:hover { background:#15325d; }
+    .btn.primary { background:#13305a; border-color:#2d4c7b; }
+    .btn.danger { background:#3a0f14; border-color:#5a1f25; }
+    .select { min-width:150px; }
+    .colsBtn { white-space:nowrap; }
+    .colsPanel {
+      display:none; position:absolute; top:42px; right:0; z-index:30;
+      min-width:240px; max-height:60vh; overflow:auto;
+      background:#0b1220; border:1px solid #263241; border-radius:12px; padding:10px;
+      box-shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    .colsPanel.open { display:block; }
+    .colsPanel label { display:flex; align-items:center; gap:8px; padding:6px 4px; cursor:pointer; }
+    .colsPanel .note { margin-top:8px; color:var(--muted); font-size:12px; }
+    .wrap { flex:1 1 auto; min-height:0; padding:10px; }
+    .tableScroll {
+      height:100%; overflow:auto; background:#0b1220; border:1px solid #263241; border-radius:12px;
+    }
+    table { width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; }
+    th, td { padding:10px 12px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+    thead th { position:sticky; top:0; background:#0f172a; z-index:1; }
+    tbody tr.hide { display:none; }
+    tbody tr.selected td { background:var(--sel); }
+    tbody tr:hover td { background:var(--hover); }
+    tbody tr.selected:hover td { background:var(--sel); }
+    th.selCol, td.selCol { width:44px; min-width:44px; max-width:44px; text-align:center; }
+    input[type="checkbox"]{ width:16px; height:16px; cursor:pointer; }
+    /* Column resizer handle */
+    .resizer {
+      position:absolute; top:0; right:-4px; width:8px; height:100%;
+      cursor:col-resize; user-select:none;
+      background:linear-gradient(to right, transparent 0, transparent 3px, #1f2937 3px, #1f2937 5px, transparent 5px);
+      opacity:.3;
+    }
+    th { position:sticky; top:0; background:#0f172a; }
+    th .headerInner { position:relative; display:block; padding-right:10px; }
+    /* Hide columns by class */
+    .hide-col { display:none !important; }
+    @media (max-width:900px){
+      .title { display:none; }
+      .search { flex:1; min-width:0; width:auto; }
+      .select { display:none; } /* compact UI on small screens */
+    }
+    /* Modal */
+    .modalBackdrop { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:50; }
+    .modalBackdrop.open { display:flex; }
+    .modal { width:min(900px, 92vw); max-height:88vh; overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+    .modal header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--line); }
+    .modal h2 { margin:0; font-size:16px; }
+    .modal .content { padding:14px 16px; }
+    .modal .grid { display:grid; grid-template-columns: 200px 1fr; gap:10px 14px; align-items:start; }
+    .modal label { color:var(--muted); font-size:13px; padding-top:10px; }
+    .modal input, .modal textarea, .modal select { width:100%; padding:10px 12px; border-radius:10px; border:1px solid #263241; background:#0b1220; color:var(--text); }
+    .modal footer { display:flex; gap:10px; justify-content:flex-end; padding:14px 16px; border-top:1px solid var(--line); }
+    .help { color:var(--muted); font-size:12px; margin-top:8px; }
+    .msg { font-size:13px; margin-right:auto; }
+    .msg.ok { color:var(--ok); }
+    .msg.err { color:var(--danger); }
+    @media (max-width:900px){
+      .modal .grid { grid-template-columns: 1fr; }
+      .modal label { padding-top:0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <h1 id="pageTitle" class="title">Tool Disclosure List</h1>
+      <input id="q" class="search" type="search" placeholder="Search…" aria-label="Search table" />
+      <div class="columnsWrap">
+        <button id="colsBtn" class="btn colsBtn">Columns ▾</button>
+        <div id="colsPanel" class="colsPanel" role="dialog" aria-label="Toggle columns"></div>
+      </div>
+      <div class="exportWrap">
+        <button id="addBtn" class="btn primary">+ Add Row</button>
+        <select id="fmt" class="select" aria-label="Export format">
+          <option value="md">Markdown (.md)</option>
+          <option value="csv">CSV (.csv)</option>
+        </select>
+        <button id="exportBtn" class="btn">Export</button>
+      </div>
+      <div class="spacer"></div>
+      <span id="count" class="count" aria-live="polite"></span>
+    </header>
+
+    <div class="wrap">
+      <div class="tableScroll">
+        <table id="sheet">
+          <colgroup id="colgroup">
+            <col class="col-sel">
+          </colgroup>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Row Modal -->
+  <div id="addModal" class="modalBackdrop" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal" role="document">
+      <header>
+        <h2>Add Row</h2>
+        <button id="addClose" class="btn">Close</button>
+      </header>
+      <div class="content">
+        <form id="addForm">
+          <div id="addGrid" class="grid"></div>
+          <p class="help">All fields are optional. Leave blank to insert an empty cell.</p>
+        </form>
+      </div>
+      <footer>
+        <div id="addMsg" class="msg" aria-live="polite"></div>
+        <button id="addCancel" class="btn">Cancel</button>
+        <button id="addSave" class="btn primary">Save</button>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    // ---- Config ----
+    // GitHub repo info for reading/writing Markdown rows in /data
+    const GH_OWNER  = "sakerk";                 // CHANGE if needed
+    const GH_REPO   = "AI-Tool-Disclosure-List"; // CHANGE if needed
+    const GH_BRANCH = "main";                    // 'main' or 'gh-pages'
+    const DATA_DIR  = "data";                    // folder containing per-row .md files
+
+    // Optional: personal access token (scoped to repository contents) for writing new files.
+    // Leave blank to be prompted once on first Save (stored in localStorage).
+    let GH_TOKEN = localStorage.getItem("ghToken") || "";
+
+    // Canonical header order (also used if we can't infer from first file)
+    const DEFAULT_HEADERS = [
+      "Tool Name","License Type","Tool Type","Tool Category","Hosting Model",
+      "Risk Level","Output Handling Category","Usage Description","Official Website","Approval Status"
+    ];
+
+    // ---- State ----
+    let HEADERS = [];               // populated from the first .md table we load (or DEFAULT_HEADERS)
+    let ROWS = [];                  // array of arrays (cells)
+    const SELECTED = new Set();     // selected row indices
+    let COL_VISIBLE = [];           // boolean per column
+    let COL_WIDTHS = [];            // pixel widths per column (null for auto)
+    let INDEX_ROWS = [];            // for searching
+
+    // ---- GitHub helpers ----
+    function ghContentsUrl(dir){
+      return `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${encodeURIComponent(dir)}?ref=${encodeURIComponent(GH_BRANCH)}`;
+    }
+    function ghRawUrl(path){
+      return `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${path}`;
+    }
+    async function listMarkdownFiles(){
+      const url = ghContentsUrl(DATA_DIR);
+      const res = await fetch(url, { headers: GH_TOKEN ? { "Authorization": "Bearer " + GH_TOKEN } : {} });
+      if(!res.ok) throw new Error("GitHub list error " + res.status);
+      const items = await res.json();
+      return items.filter(it => it.type === "file" && /\.md$/i.test(it.name)).sort((a,b)=>a.name.localeCompare(b.name));
+    }
+    async function fetchText(url){
+      const res = await fetch(url, { headers: GH_TOKEN ? { "Authorization": "Bearer " + GH_TOKEN } : {} });
+      if(!res.ok) throw new Error("Fetch error " + res.status + " for " + url);
+      return res.text();
+    }
+    function base64EncodeUnicode(str){
+      // Proper base64 for unicode strings
+      return btoa(unescape(encodeURIComponent(str)));
+    }
+    async function createFileInRepo(path, content, message){
+      if(!GH_TOKEN){
+        const tok = prompt("GitHub token (repo contents write). It will be stored locally.", "");
+        if(!tok){ throw new Error("Write cancelled (no token)"); }
+        GH_TOKEN = tok.trim();
+        localStorage.setItem("ghToken", GH_TOKEN);
+      }
+      const url = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${encodeURIComponent(path)}`;
+      const body = {
+        message: message || ("Add " + path),
+        content: base64EncodeUnicode(content),
+        branch: GH_BRANCH
+      };
+      const res = await fetch(url, {
+        method: "PUT",
+        headers: { "Authorization": "Bearer " + GH_TOKEN, "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      if(!res.ok){
+        let msg = "GitHub write error " + res.status;
+        try { const j = await res.json(); msg = (j && j.message) || msg; } catch {}
+        throw new Error(msg);
+      }
+      return res.json();
+    }
+
+    // ---- Markdown table parsing ----
+    function splitCells(line){
+      // remove leading/trailing pipe and split on unescaped pipes
+      let s = line.trim();
+      s = s.replace(/^\|/, "").replace(/\|$/, "");
+      const parts = [];
+      let cur = ""; let esc = false;
+      for(let i=0;i<s.length;i++){
+        const ch = s[i];
+        if(esc){ cur += ch; esc = false; continue; }
+        if(ch === "\\"){ esc = true; continue; }
+        if(ch === "|"){ parts.push(cur.trim()); cur = ""; continue; }
+        cur += ch;
+      }
+      parts.push(cur.trim());
+      return parts;
+    }
+    function parseFirstTable(md){
+      const lines = md.split(/\r?\n/);
+      for(let i=0;i<lines.length-1;i++){
+        const headerLine = lines[i];
+        const sepLine = lines[i+1] || "";
+        if(/^\s*\|.*\|\s*$/.test(headerLine) && /^\s*\|\s*:?-{3,}.*\|\s*$/.test(sepLine)){
+          const headers = splitCells(headerLine);
+          const rows = [];
+          for(let j=i+2; j<lines.length; j++){
+            const ln = lines[j];
+            if(!/^\s*\|.*\|\s*$/.test(ln)) break;
+            const cells = splitCells(ln);
+            if(cells.every(c => c.trim()==="")) continue;
+            rows.push(cells);
+          }
+          return { headers, rows };
+        }
+      }
+      return null;
+    }
+
+    // ---- Rendering ----
+    function renderTable(headers, rows){
+      const tbl = document.getElementById("sheet");
+      // rebuild skeleton
+      tbl.innerHTML = "";
+      const colgroup = document.createElement("colgroup");
+      colgroup.id = "colgroup";
+      const selCol = document.createElement("col");
+      selCol.className = "col-sel";
+      colgroup.appendChild(selCol);
+      tbl.appendChild(colgroup);
+
+      const thead = document.createElement("thead");
+      const trh = document.createElement("tr");
+
+      // Selection master
+      const thSel = document.createElement("th");
+      thSel.className = "selCol";
+      const master = document.createElement("input");
+      master.type = "checkbox";
+      master.title = "Select visible rows";
+      master.addEventListener("change", () => toggleSelectVisible(master.checked));
+      thSel.appendChild(master);
+      trh.appendChild(thSel);
+
+      // Header cells + resizers
+      headers.forEach((h, i) => {
+        const th = document.createElement("th");
+        th.dataset.col = String(i);
+        const span = document.createElement("span");
+        span.className = "headerInner";
+        span.textContent = h || ("Column " + (i+1));
+        th.appendChild(span);
+        const handle = document.createElement("div");
+        handle.className = "resizer";
+        handle.addEventListener("mousedown", startResize.bind(null, i));
+        handle.addEventListener("dblclick", autoFitColumn.bind(null, i));
+        th.appendChild(handle);
+        trh.appendChild(th);
+
+        // add a <col> for this column for sizing
+        const c = document.createElement("col");
+        c.dataset.col = String(i);
+        colgroup.appendChild(c);
+      });
+      thead.appendChild(trh);
+
+      const tbody = document.createElement("tbody");
+      rows.forEach((r, idx) => {
+        const tr = document.createElement("tr");
+        tr.dataset.index = String(idx);
+
+        // selection checkbox
+        const tdSel = document.createElement("td");
+        tdSel.className = "selCol";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = SELECTED.has(idx);
+        cb.addEventListener("change", () => toggleRow(idx, tr, cb.checked));
+        tdSel.appendChild(cb);
+        tr.appendChild(tdSel);
+
+        // data cells
+        r.forEach((v, i) => {
+          const td = document.createElement("td");
+          td.dataset.col = String(i);
+          td.textContent = (v == null ? "" : v);
+          tr.appendChild(td);
+        });
+
+        if(SELECTED.has(idx)) tr.classList.add("selected");
+        tbody.appendChild(tr);
+      });
+
+      tbl.appendChild(thead);
+      tbl.appendChild(tbody);
+
+      applyColumnVisibility();
+      applyColumnWidths();
+      buildIndexRows();
+      updateCounts();
+    }
+
+    function applyColumnVisibility(){
+      const ths = document.querySelectorAll("#sheet thead th[data-col]");
+      const tds = document.querySelectorAll("#sheet tbody td[data-col]");
+      ths.forEach(th => {
+        const i = parseInt(th.dataset.col, 10);
+        th.classList.toggle("hide-col", COL_VISIBLE[i] === false);
+      });
+      tds.forEach(td => {
+        const i = parseInt(td.dataset.col, 10);
+        td.classList.toggle("hide-col", COL_VISIBLE[i] === false);
+      });
+    }
+
+    function applyColumnWidths(){
+      const colgroup = document.getElementById("colgroup");
+      if(!colgroup) return;
+      COL_WIDTHS.forEach((w, i) => {
+        let col = colgroup.querySelector(`col[data-col="${i}"]`);
+        if(!col){
+          col = document.createElement("col");
+          col.dataset.col = String(i);
+          colgroup.appendChild(col);
+        }
+        col.style.width = (w ? w + "px" : "");
+      });
+    }
+
+    // ---- Resizing ----
+    let resizeState = null;
+    function startResize(i, ev){
+      ev.preventDefault();
+      const th = document.querySelector(`#sheet thead th[data-col="${i}"]`);
+      const col = document.querySelector(`#colgroup col[data-col="${i}"]`);
+      const startX = ev.clientX;
+      const startW = th.getBoundingClientRect().width;
+      resizeState = { i, startX, startW, col };
+      window.addEventListener("mousemove", onResizeMove);
+      window.addEventListener("mouseup", endResize);
+      document.body.style.cursor = "col-resize";
+    }
+    function onResizeMove(ev){
+      if(!resizeState) return;
+      const { i, startX, startW, col } = resizeState;
+      const w = Math.max(60, Math.round(startW + (ev.clientX - startX)));
+      COL_WIDTHS[i] = w;
+      if(col) col.style.width = w + "px";
+    }
+    function endResize(){
+      window.removeEventListener("mousemove", onResizeMove);
+      window.removeEventListener("mouseup", endResize);
+      document.body.style.cursor = "";
+      resizeState = null;
+    }
+    function autoFitColumn(i){
+      const th = document.querySelector(`#sheet thead th[data-col="${i}"]`);
+      const cells = Array.from(document.querySelectorAll(`#sheet tbody td[data-col="${i}"]`));
+      const measure = el => Math.ceil(el.getBoundingClientRect().width);
+      let maxW = measure(th);
+      cells.forEach(td => { maxW = Math.max(maxW, measure(td)); });
+      maxW = Math.min(Math.max(80, maxW + 12), 800);
+      COL_WIDTHS[i] = maxW;
+      applyColumnWidths();
+    }
+
+    // ---- Selection ----
+    function toggleRow(idx, tr, on){
+      if(on){ SELECTED.add(idx); tr.classList.add("selected"); }
+      else { SELECTED.delete(idx); tr.classList.remove("selected"); }
+      updateCounts();
+    }
+    function toggleSelectVisible(on){
+      const visibleRows = Array.from(document.querySelectorAll("#sheet tbody tr:not(.hide)"));
+      visibleRows.forEach(tr => {
+        const idx = parseInt(tr.dataset.index, 10);
+        const cb = tr.querySelector('td.selCol input[type="checkbox"]');
+        if(cb){ cb.checked = on; }
+        toggleRow(idx, tr, on);
+      });
+    }
+
+    // ---- Search ----
+    function buildIndexRows(){
+      const tbodyRows = Array.from(document.querySelectorAll("#sheet tbody tr"));
+      INDEX_ROWS = tbodyRows.map(tr => {
+        const text = Array.from(tr.querySelectorAll('td[data-col]:not(.hide-col)'))
+          .map(td => td.textContent.toLowerCase()).join(" ");
+        return { tr, text };
+      });
+    }
+    function setupSearch(){
+      const q = document.getElementById("q");
+      const debounced = debounce(() => {
+        const val = q.value.trim().toLowerCase();
+        const terms = val.split(/\s+/).filter(Boolean);
+        INDEX_ROWS.forEach(({tr, text}) => {
+          const hit = terms.every(t => text.includes(t));
+          tr.classList.toggle("hide", !hit);
+        });
+        updateCounts();
+      }, 120);
+      q.addEventListener("input", debounced);
+    }
+    function updateCounts(){
+      const countEl = document.getElementById("count");
+      const total = ROWS.length;
+      const visible = document.querySelectorAll("#sheet tbody tr:not(.hide)").length;
+      const selCount = SELECTED.size;
+      countEl.textContent = (visible === total ? (total + " rows") : ("Showing " + visible + " of " + total)) + " • " + selCount + " selected";
+    }
+    function debounce(fn, ms){
+      let t; return function(){ clearTimeout(t); t = setTimeout(fn, ms); };
+    }
+
+    // ---- Columns panel ----
+    function buildColumnsPanel(){
+      const panel = document.getElementById("colsPanel");
+      panel.innerHTML = "";
+      HEADERS.forEach((h, i) => {
+        const label = document.createElement("label");
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = COL_VISIBLE[i] !== false;
+        cb.addEventListener("change", () => {
+          COL_VISIBLE[i] = cb.checked;
+          applyColumnVisibility();
+          buildIndexRows();
+        });
+        const txt = document.createElement("span");
+        txt.textContent = h || ("Column " + (i+1));
+        label.appendChild(cb);
+        label.appendChild(txt);
+        panel.appendChild(label);
+      });
+      const note = document.createElement("div");
+      note.className = "note";
+      note.textContent = "Tip: Double-click a header’s right edge to auto-fit. Drag to resize.";
+      panel.appendChild(note);
+    }
+    function setupColumnsUI(){
+      const btn = document.getElementById("colsBtn");
+      const panel = document.getElementById("colsPanel");
+      btn.addEventListener("click", () => {
+        panel.classList.toggle("open");
+      });
+      document.addEventListener("click", (e) => {
+        if(!panel.contains(e.target) && !btn.contains(e.target)){
+          panel.classList.remove("open");
+        }
+      });
+    }
+
+    // ---- Export ----
+    function toMarkdown(headers, rows, titleText){
+      const escPipe = v => (v==null ? "" : String(v).replace(/\|/g, "\\|"));
+      const headLine = "| " + headers.map(escPipe).join(" | ") + " |";
+      const sepLine  = "| " + headers.map(()=>"---").join(" | ") + " |";
+      const body = rows.map(r => "| " + r.map(escPipe).join(" | ") + " |").join("\n");
+      const table = headLine + "\n" + sepLine + "\n" + body + "\n";
+      return (titleText ? ("# " + titleText + "\n\n") : "") + table;
+    }
+    function toCSV(headers, rows){
+      function esc(v){
+        if(v==null) v = "";
+        v = String(v);
+        if(/[\",\n]/.test(v)){ v = '\"' + v.replace(/\"/g, '\"\"') + '\"'; }
+        return v;
+      }
+      const all = [headers, ...rows];
+      return all.map(r => r.map(esc).join(",")).join("\r\n") + "\r\n";
+    }
+    function downloadFile(filename, text, mime){
+      const blob = new Blob([text], {type: mime});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+    function rowsForExport(){
+      const anySelected = SELECTED.size > 0;
+      if(anySelected){
+        const idxs = Array.from(SELECTED).sort((a,b)=>a-b);
+        return idxs.map(i => ROWS[i]);
+      } else {
+        const trs = Array.from(document.querySelectorAll("#sheet tbody tr:not(.hide)"));
+        return trs.map(tr => ROWS[parseInt(tr.dataset.index, 10)]);
+      }
+    }
+    function visibleColumns(){
+      const idxs = [];
+      COL_VISIBLE.forEach((v, i) => { if(v !== false) idxs.push(i); });
+      return idxs;
+    }
+    function filterColumns(headers, rows){
+      const cols = visibleColumns();
+      const fh = cols.map(i => headers[i]);
+      const fr = rows.map(r => cols.map(i => r[i]));
+      return { fh, fr };
+    }
+
+    // ---- Add Row Modal ----
+    const addModal = () => document.getElementById('addModal');
+    const addGrid  = () => document.getElementById('addGrid');
+    const addMsg   = () => document.getElementById('addMsg');
+
+    function openAddModal(){
+      if(!HEADERS.length){ alert('Data not loaded yet.'); return; }
+      const grid = addGrid();
+      grid.innerHTML = '';
+      HEADERS.forEach((h, i) => {
+        const lab = document.createElement('label');
+        lab.setAttribute('for', 'col_'+i);
+        lab.textContent = h || ('Column ' + (i+1));
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.id = 'col_'+i;
+        inp.name = 'col_'+i;
+        grid.appendChild(lab);
+        grid.appendChild(inp);
+      });
+      setStatus('', null);
+      addModal().classList.add('open');
+      addModal().setAttribute('aria-hidden','false');
+    }
+    function closeAddModal(){
+      addModal().classList.remove('open');
+      addModal().setAttribute('aria-hidden','true');
+    }
+    function setStatus(text, ok){
+      const el = addMsg();
+      el.textContent = text || '';
+      el.classList.toggle('ok', ok === true);
+      el.classList.toggle('err', ok === false);
+    }
+
+    document.getElementById('addBtn').addEventListener('click', openAddModal);
+    document.getElementById('addClose').addEventListener('click', closeAddModal);
+    document.getElementById('addCancel').addEventListener('click', (e)=>{ e.preventDefault(); closeAddModal(); });
+
+    document.getElementById('addSave').addEventListener('click', async (e) => {
+      e.preventDefault();
+      const values = HEADERS.map((_, i) => {
+        const el = document.getElementById('col_'+i);
+        return el ? el.value.trim() : '';
+      });
+      const md = toMarkdown(HEADERS, [values], ""); // per-row files contain just the table (no H1)
+      // SLUG FORMAT: /data/<tool-name>-<timestamp>.md
+      const toolName = (values[0] || "row").toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+      const ts = new Date().toISOString().replace(/[^0-9]/g,'').slice(0,14);
+      const path = `${DATA_DIR}/${toolName || 'row'}-${ts}.md`;
+      try{
+        setStatus('Saving…');
+        await createFileInRepo(path, md, `Add tool row: ${values[0] || 'New Entry'}`);
+        // optimistic UI update
+        ROWS.push(values);
+        renderTable(HEADERS, ROWS);
+        setStatus('Saved', true);
+        setTimeout(closeAddModal, 400);
+      }catch(err){
+        console.warn('Write to GitHub failed or cancelled:', err);
+        // Offer a download fallback
+        downloadFile(path.split('/').pop(), md, 'text/markdown');
+        setStatus('Downloaded (add to repo /data manually)', true);
+      }
+    });
+
+    // ---- Load all .md rows from /data ----
+    async function loadAll(){
+      const list = await listMarkdownFiles();
+      const files = list.map(it => ({ name: it.name, url: it.download_url || ghRawUrl(`${DATA_DIR}/${it.name}`) }));
+      // Optional: show progress in count label
+      const countEl = document.getElementById("count");
+      ROWS = [];
+      HEADERS = [];
+      countEl.textContent = "Loading…";
+      // Fetch sequentially to be gentle (or adjust concurrency)
+      for(let i=0;i<files.length;i++){
+        const {name, url} = files[i];
+        try{
+          const text = await fetchText(url);
+          const parsed = parseFirstTable(text);
+          if(!parsed) continue;
+          if(HEADERS.length === 0){
+            // Use header from the first MD only
+            HEADERS = parsed.headers.length ? parsed.headers : DEFAULT_HEADERS.slice();
+            COL_VISIBLE = HEADERS.map(()=>true);
+            COL_WIDTHS = HEADERS.map(()=>null);
+          }
+          // Only use the first data row from each file
+          if(parsed.rows && parsed.rows.length){
+            const row = parsed.rows[0];
+            // Normalize cell count to headers length
+            const cells = HEADERS.map((_, idx) => row[idx] ?? "");
+            ROWS.push(cells);
+          }
+          countEl.textContent = `Loading… ${i+1}/${files.length}`;
+        }catch(e){
+          console.warn("Skipping file due to error", name, e);
+        }
+      }
+      // Render
+      if(HEADERS.length === 0) HEADERS = DEFAULT_HEADERS.slice();
+      renderTable(HEADERS, ROWS);
+      buildColumnsPanel();
+      setupColumnsUI();
+      setupSearch();
+    }
+
+    // ---- Wire Export ----
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      if(!HEADERS.length) return;
+      const fmt = document.getElementById("fmt").value;
+      const dataRows = rowsForExport();
+      const { fh, fr } = filterColumns(HEADERS, dataRows);
+      if(fmt === "md"){
+        const md = toMarkdown(fh, fr, "Tool Disclosure List");
+        downloadFile("tool-disclosure-list.md", md, "text/markdown");
+      } else {
+        const csv = toCSV(fh, fr);
+        downloadFile("tool-disclosure-list.csv", csv, "text/csv");
+      }
+    });
+
+    // ---- Go ----
+    loadAll().catch(err => {
+      const tbl = document.getElementById("sheet");
+      tbl.innerHTML = "<thead><tr><th>Error</th></tr></thead><tbody><tr><td>Failed to load /data markdown files: " + (err && err.message ? err.message : err) + "</td></tr></tbody>";
+      console.error(err);
+    });
+  </script>
+</body>
+</html>
