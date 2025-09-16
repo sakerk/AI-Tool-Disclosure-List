@@ -74,7 +74,23 @@
       .search { flex:1; min-width:0; width:auto; }
       .select { display:none; } /* compact UI on small screens */
     }
-  </style>
+      /* Modal */
+    .modalBackdrop { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:50; }
+    .modalBackdrop.open { display:flex; }
+    .modal { width:min(900px, 92vw); max-height:88vh; overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+    .modal header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--line); }
+    .modal h2 { margin:0; font-size:16px; }
+    .modal .content { padding:14px 16px; }
+    .modal .grid { display:grid; grid-template-columns: 200px 1fr; gap:10px 14px; align-items:start; }
+    .modal label { color:var(--muted); font-size:13px; padding-top:10px; }
+    .modal input, .modal textarea, .modal select { width:100%; padding:10px 12px; border-radius:10px; border:1px solid #263241; background:#0b1220; color:var(--text); }
+    .modal footer { display:flex; gap:10px; justify-content:flex-end; padding:14px 16px; border-top:1px solid var(--line); }
+    .help { color:var(--muted); font-size:12px; margin-top:8px; }
+    .msg { font-size:13px; margin-right:auto; }
+    .msg.ok { color:#22c55e; }
+    .msg.err { color:#ef4444; }
+</style>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
   <div class="app">
@@ -86,6 +102,7 @@
         <div id="colsPanel" class="colsPanel" role="dialog" aria-label="Toggle columns"></div>
       </div>
       <div class="exportWrap">
+        <button id="addBtn" class="btn">+ Add Row</button>
         <select id="fmt" class="select" aria-label="Export format">
           <option value="md">Markdown (.md)</option>
           <option value="csv">CSV (.csv)</option>
@@ -111,6 +128,12 @@
     // ---- Config ----
     const SHEET_ID = "17YEFTLMnJ2ddWnQDSxp4-ykfDH0Fy2KR1Cxj4q7rpUU";
     const GID = "0"; // change for a different tab
+
+    // Write-back config (pick one):
+    //   A) OAuth (Google Sheets API): set a Web Client ID below
+    //   B) Apps Script Web App endpoint: paste deployment URL below
+    const GOOGLE_CLIENT_ID = ""; // e.g. 1234567890-abcdefg.apps.googleusercontent.com
+    const APPEND_ENDPOINT = "";  // e.g. https://script.google.com/macros/s/AKfycb.../exec
 
     // State
     let PAGE_TITLE = "Tool Disclosure List";
@@ -465,7 +488,139 @@
       return { fh, fr };
     }
 
-    // ---- Main load ----
+    // ---- Add Row Modal & Write-back ----
+    const addModalEl = () => document.getElementById('addModal');
+    const addGrid  = () => document.getElementById('addGrid');
+    const addMsg   = () => document.getElementById('addMsg');
+
+    function openAddModal(){
+      if(!HEADERS.length){ alert('Data not loaded yet.'); return; }
+      const grid = addGrid();
+      grid.innerHTML = '';
+      HEADERS.forEach((h, i) => {
+        const lab = document.createElement('label');
+        lab.setAttribute('for', 'col_'+i);
+        lab.textContent = h || ('Column ' + (i+1));
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.id = 'col_'+i;
+        inp.name = 'col_'+i;
+        grid.appendChild(lab);
+        grid.appendChild(inp);
+      });
+      setStatus('', null);
+      addModalEl().classList.add('open');
+      addModalEl().setAttribute('aria-hidden','false');
+    }
+    function closeAddModal(){
+      addModalEl().classList.remove('open');
+      addModalEl().setAttribute('aria-hidden','true');
+    }
+    function setStatus(text, ok){
+      const el = addMsg();
+      el.textContent = text || '';
+      el.classList.toggle('ok', ok === true);
+      el.classList.toggle('err', ok === false);
+    }
+
+    document.addEventListener('click', (e)=>{
+      if(e.target && e.target.id === 'addBtn') openAddModal();
+      if(e.target && e.target.id === 'addClose') closeAddModal();
+      if(e.target && e.target.id === 'addCancel'){ e.preventDefault(); closeAddModal(); }
+      if(e.target && e.target.id === 'addSave') saveNewRow(e);
+    });
+
+    async function saveNewRow(e){
+      if(e) e.preventDefault();
+      const values = HEADERS.map((_, i) => {
+        const el = document.getElementById('col_'+i);
+        return el ? el.value.trim() : '';
+      });
+      try{
+        setStatus('Saving…');
+        await appendRow(values);
+        ROWS.push(values);
+        renderTable(HEADERS, ROWS);
+        setStatus('Saved', true);
+        setTimeout(closeAddModal, 400);
+      }catch(err){
+        console.error(err);
+        setStatus(err && err.message ? err.message : 'Save failed', false);
+      }
+    }
+
+    // —— Write helpers ——
+    let OAUTH_TOKEN = null; let SHEET_TAB_TITLE = null;
+
+    async function ensureOAuth(){
+      if(OAUTH_TOKEN) return OAUTH_TOKEN;
+      if(!GOOGLE_CLIENT_ID || !window.google || !google.accounts || !google.accounts.oauth2){
+        throw new Error('No write method configured. Set GOOGLE_CLIENT_ID or APPEND_ENDPOINT.');
+      }
+      return new Promise((resolve, reject) => {
+        try{
+          const tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_CLIENT_ID,
+            scope: 'https://www.googleapis.com/auth/spreadsheets',
+            callback: (resp) => {
+              if(resp && resp.access_token){ OAUTH_TOKEN = resp.access_token; resolve(OAUTH_TOKEN); }
+              else reject(new Error('OAuth token failed'));
+            }
+          });
+          tokenClient.requestAccessToken({prompt: ''});
+        }catch(e){ reject(e); }
+      });
+    }
+
+    async function getSheetTabTitle(token){
+      if(SHEET_TAB_TITLE) return SHEET_TAB_TITLE;
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=sheets(properties(sheetId,title))`;
+      const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+      if(!res.ok) throw new Error('Failed to read sheet metadata');
+      const json = await res.json();
+      const gidNum = parseInt(GID, 10);
+      const sheets = (json.sheets || []).map(s => s.properties);
+      let t = sheets.find(p => p.sheetId === gidNum)?.title;
+      if(!t && sheets.length) t = sheets[0].title;
+      if(!t) throw new Error('Cannot determine sheet tab name');
+      SHEET_TAB_TITLE = t; return t;
+    }
+
+    async function appendViaSheetsAPI(row){
+      const token = await ensureOAuth();
+      const tab = await getSheetTabTitle(token);
+      const range = encodeURIComponent(`${tab}!A1`);
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: [row] })
+      });
+      if(!res.ok){
+        let msg = 'Sheets API error ' + res.status;
+        try { const j = await res.json(); msg = (j.error && j.error.message) || msg; } catch{}
+        throw new Error(msg);
+      }
+      return res.json();
+    }
+
+    async function appendViaAppsScript(row){
+      if(!APPEND_ENDPOINT) throw new Error('APPEND_ENDPOINT not set');
+      const res = await fetch(APPEND_ENDPOINT, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ row, sheetId: SHEET_ID, gid: GID })
+      });
+      if(!res.ok){ throw new Error('Endpoint error ' + res.status); }
+      try { return await res.json(); } catch { return {}; }
+    }
+
+    function appendRow(row){
+      if(GOOGLE_CLIENT_ID){ return appendViaSheetsAPI(row); }
+      if(APPEND_ENDPOINT){ return appendViaAppsScript(row); }
+      return Promise.reject(new Error('No write method configured. Set GOOGLE_CLIENT_ID or APPEND_ENDPOINT.'));
+    }
+
+// ---- Main load ----
     async function load(){
       // Try to fetch the Google Doc title (best effort)
       try {
@@ -523,5 +678,25 @@
       console.error(err);
     });
   </script>
+  <!-- Add Row Modal -->
+  <div id="addModal" class="modalBackdrop" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal" role="document">
+      <header>
+        <h2>Add Row</h2>
+        <button id="addClose" class="btn">Close</button>
+      </header>
+      <div class="content">
+        <form id="addForm">
+          <div id="addGrid" class="grid"></div>
+          <p class="help">All fields are optional. Leave blank to insert an empty cell.</p>
+        </form>
+      </div>
+      <footer>
+        <div id="addMsg" class="msg" aria-live="polite"></div>
+        <button id="addCancel" class="btn">Cancel</button>
+        <button id="addSave" class="btn">Save</button>
+      </footer>
+    </div>
+  </div>
 </body>
 </html>
