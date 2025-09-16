@@ -1,4 +1,4 @@
-html = r"""<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -60,7 +60,6 @@ html = r"""<!doctype html>
     tbody tr.selected:hover td { background:var(--sel); }
     th.selCol, td.selCol { width:44px; min-width:44px; max-width:44px; text-align:center; }
     input[type="checkbox"]{ width:16px; height:16px; cursor:pointer; }
-    /* Column resizer handle */
     .resizer {
       position:absolute; top:0; right:-4px; width:8px; height:100%;
       cursor:col-resize; user-select:none;
@@ -69,12 +68,11 @@ html = r"""<!doctype html>
     }
     th { position:sticky; top:0; background:#0f172a; }
     th .headerInner { position:relative; display:block; padding-right:10px; }
-    /* Hide columns by class */
     .hide-col { display:none !important; }
     @media (max-width:900px){
       .title { display:none; }
       .search { flex:1; min-width:0; width:auto; }
-      .select { display:none; } /* compact UI on small screens */
+      .select { display:none; }
     }
     /* Modal */
     .modalBackdrop { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:50; }
@@ -89,8 +87,8 @@ html = r"""<!doctype html>
     .modal footer { display:flex; gap:10px; justify-content:flex-end; padding:14px 16px; border-top:1px solid var(--line); }
     .help { color:var(--muted); font-size:12px; margin-top:8px; }
     .msg { font-size:13px; margin-right:auto; }
-    .msg.ok { color:var(--ok); }
-    .msg.err { color:var(--danger); }
+    .msg.ok { color:#22c55e; }
+    .msg.err { color:#ef4444; }
     @media (max-width:900px){
       .modal .grid { grid-template-columns: 1fr; }
       .modal label { padding-top:0; }
@@ -152,12 +150,12 @@ html = r"""<!doctype html>
 
   <script>
     // ---- Config ----
-    const GH_OWNER  = "sakerk";                 // CHANGE if needed
+    const GH_OWNER  = "sakerk";                  // CHANGE if needed
     const GH_REPO   = "AI-Tool-Disclosure-List"; // CHANGE if needed
     const GH_BRANCH = "main";                    // 'main' or 'gh-pages'
-    const DATA_DIR  = "data";                    // folder containing per-row .md files
+    const DATA_DIR  = "data";                    // folder with per-row .md files
 
-    // Optional: personal access token (repo contents write). Stored locally.
+    // Optional: personal access token (contents:write). Stored locally.
     let GH_TOKEN = localStorage.getItem("ghToken") || "";
 
     const DEFAULT_HEADERS = [
@@ -181,7 +179,7 @@ html = r"""<!doctype html>
       return `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${path}`;
     }
 
-    // READ: Prefer unauthenticated; if that fails and a token exists, retry with auth.
+    // READ: prefer unauthenticated; if that fails and a token exists, retry with auth.
     async function listMarkdownFiles(){
       const url = ghContentsUrl(DATA_DIR);
       let res = await fetch(url); // unauth first
@@ -194,7 +192,7 @@ html = r"""<!doctype html>
                   .sort((a,b)=>a.name.localeCompare(b.name));
     }
     async function fetchText(url){
-      let res = await fetch(url); // unauth first (works for public raw URLs)
+      let res = await fetch(url); // unauth raw
       if(!res.ok && GH_TOKEN){
         res = await fetch(url, { headers: { "Authorization": "Bearer " + GH_TOKEN } });
       }
@@ -206,7 +204,7 @@ html = r"""<!doctype html>
       return btoa(unescape(encodeURIComponent(str)));
     }
 
-    // WRITE: Use token only here.
+    // WRITE: use token only here.
     async function createFileInRepo(path, content, message){
       if(!GH_TOKEN){
         const tok = prompt("GitHub token (contents:write for this repo). Stored locally.", "");
@@ -236,13 +234,13 @@ html = r"""<!doctype html>
     // ---- Markdown parsing ----
     function splitCells(line){
       let s = line.trim();
-      s = s.replace(/^\\|/, "").replace(/\\|$/, "");
+      s = s.replace(/^\|/, "").replace(/\|$/, "");
       const parts = [];
       let cur = ""; let esc = false;
       for(let i=0;i<s.length;i++){
         const ch = s[i];
         if(esc){ cur += ch; esc = false; continue; }
-        if(ch === "\\\\"){ esc = true; continue; }
+        if(ch === "\\"){ esc = true; continue; }
         if(ch === "|"){ parts.push(cur.trim()); cur = ""; continue; }
         cur += ch;
       }
@@ -250,16 +248,16 @@ html = r"""<!doctype html>
       return parts;
     }
     function parseFirstTable(md){
-      const lines = md.split(/\\r?\\n/);
+      const lines = md.split(/\r?\n/);
       for(let i=0;i<lines.length-1;i++){
         const headerLine = lines[i];
         const sepLine = lines[i+1] || "";
-        if(/^\\s*\\|.*\\|\\s*$/.test(headerLine) && /^\\s*\\|\\s*:?-{3,}.*\\|\\s*$/.test(sepLine)){
+        if(/^\s*\|.*\|\s*$/.test(headerLine) && /^\s*\|\s*:?-{3,}.*\|\s*$/.test(sepLine)){
           const headers = splitCells(headerLine);
           const rows = [];
           for(let j=i+2; j<lines.length; j++){
             const ln = lines[j];
-            if(!/^\\s*\\|.*\\|\\s*$/.test(ln)) break;
+            if(!/^\s*\|.*\|\s*$/.test(ln)) break;
             const cells = splitCells(ln);
             if(cells.every(c => c.trim()==="")) continue;
             rows.push(cells);
@@ -270,7 +268,7 @@ html = r"""<!doctype html>
       return null;
     }
 
-    // ---- Rendering (same as before) ----
+    // ---- Rendering ----
     function renderTable(headers, rows){
       const tbl = document.getElementById("sheet");
       tbl.innerHTML = "";
@@ -374,6 +372,7 @@ html = r"""<!doctype html>
       });
     }
 
+    // ---- Resizing ----
     let resizeState = null;
     function startResize(i, ev){
       ev.preventDefault();
@@ -410,6 +409,7 @@ html = r"""<!doctype html>
       applyColumnWidths();
     }
 
+    // ---- Selection ----
     function toggleRow(idx, tr, on){
       if(on){ SELECTED.add(idx); tr.classList.add("selected"); }
       else { SELECTED.delete(idx); tr.classList.remove("selected"); }
@@ -425,6 +425,7 @@ html = r"""<!doctype html>
       });
     }
 
+    // ---- Search ----
     function buildIndexRows(){
       const tbodyRows = Array.from(document.querySelectorAll("#sheet tbody tr"));
       INDEX_ROWS = tbodyRows.map(tr => {
@@ -437,7 +438,7 @@ html = r"""<!doctype html>
       const q = document.getElementById("q");
       const debounced = debounce(() => {
         const val = q.value.trim().toLowerCase();
-        const terms = val.split(/\\s+/).filter(Boolean);
+        const terms = val.split(/\s+/).filter(Boolean);
         INDEX_ROWS.forEach(({tr, text}) => {
           const hit = terms.every(t => text.includes(t));
           tr.classList.toggle("hide", !hit);
@@ -457,6 +458,7 @@ html = r"""<!doctype html>
       let t; return function(){ clearTimeout(t); t = setTimeout(fn, ms); };
     }
 
+    // ---- Columns panel ----
     function buildColumnsPanel(){
       const panel = document.getElementById("colsPanel");
       panel.innerHTML = "";
@@ -494,23 +496,24 @@ html = r"""<!doctype html>
       });
     }
 
+    // ---- Export ----
     function toMarkdown(headers, rows, titleText){
-      const escPipe = v => (v==null ? "" : String(v).replace(/\\|/g, "\\\\|"));
+      const escPipe = v => (v==null ? "" : String(v).replace(/\|/g, "\\|"));
       const headLine = "| " + headers.map(escPipe).join(" | ") + " |";
       const sepLine  = "| " + headers.map(()=>"---").join(" | ") + " |";
-      const body = rows.map(r => "| " + r.map(escPipe).join(" | ") + " |").join("\\n");
-      const table = headLine + "\\n" + sepLine + "\\n" + body + "\\n";
-      return (titleText ? ("# " + titleText + "\\n\\n") : "") + table;
+      const body = rows.map(r => "| " + r.map(escPipe).join(" | ") + " |").join("\n");
+      const table = headLine + "\n" + sepLine + "\n" + body + "\n";
+      return (titleText ? ("# " + titleText + "\n\n") : "") + table;
     }
     function toCSV(headers, rows){
       function esc(v){
         if(v==null) v = "";
         v = String(v);
-        if(/[\\\",\\n]/.test(v)){ v = '\"' + v.replace(/\\\"/g, '\\\"\\\"') + '\"'; }
+        if(/[\",\n]/.test(v)){ v = '\"' + v.replace(/\"/g, '\"\"') + '\"'; }
         return v;
       }
       const all = [headers, ...rows];
-      return all.map(r => r.map(esc).join(",")).join("\\r\\n") + "\\r\\n";
+      return all.map(r => r.map(esc).join(",")).join("\r\n") + "\r\n";
     }
     function downloadFile(filename, text, mime){
       const blob = new Blob([text], {type: mime});
@@ -542,6 +545,7 @@ html = r"""<!doctype html>
       return { fh, fr };
     }
 
+    // ---- Add Row Modal ----
     const addModal = () => document.getElementById('addModal');
     const addGrid  = () => document.getElementById('addGrid');
     const addMsg   = () => document.getElementById('addMsg');
@@ -586,25 +590,28 @@ html = r"""<!doctype html>
         const el = document.getElementById('col_'+i);
         return el ? el.value.trim() : '';
       });
-      const md = toMarkdown(HEADERS, [values], ""); // per-row files contain just the table (no H1)
+      const md = toMarkdown(HEADERS, [values], ""); // per-row file contains just the table (no H1)
+
       // SLUG FORMAT: /data/<tool-name>-<timestamp>.md
       const toolName = (values[0] || "row").toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
       const ts = new Date().toISOString().replace(/[^0-9]/g,'').slice(0,14);
       const path = `${DATA_DIR}/${toolName || 'row'}-${ts}.md`;
+
       try{
         setStatus('Saving…');
         await createFileInRepo(path, md, `Add tool row: ${values[0] || 'New Entry'}`);
-        ROWS.push(values);
+        ROWS.push(values);     // optimistic update
         renderTable(HEADERS, ROWS);
         setStatus('Saved', true);
         setTimeout(closeAddModal, 400);
       }catch(err){
         console.warn('Write to GitHub failed or cancelled:', err);
-        downloadFile(path.split('/').pop(), md, 'text/markdown');
+        downloadFile(path.split('/').pop(), md, 'text/markdown'); // fallback
         setStatus('Downloaded (add to repo /data manually)', true);
       }
     });
 
+    // ---- Load all .md rows from /data ----
     async function loadAll(){
       const list = await listMarkdownFiles();
       const files = list.map(it => ({ name: it.name, url: it.download_url || ghRawUrl(`${DATA_DIR}/${it.name}`) }));
@@ -640,6 +647,7 @@ html = r"""<!doctype html>
       setupSearch();
     }
 
+    // ---- Export ----
     document.getElementById("exportBtn").addEventListener("click", () => {
       if(!HEADERS.length) return;
       const fmt = document.getElementById("fmt").value;
@@ -654,6 +662,7 @@ html = r"""<!doctype html>
       }
     });
 
+    // ---- Go ----
     loadAll().catch(err => {
       const tbl = document.getElementById("sheet");
       tbl.innerHTML = "<thead><tr><th>Error</th></tr></thead><tbody><tr><td>Failed to load /data markdown files: " + (err && err.message ? err.message : err) + "</td></tr></tbody>";
@@ -662,7 +671,3 @@ html = r"""<!doctype html>
   </script>
 </body>
 </html>
-"""
-with open("/mnt/data/index.html", "w", encoding="utf-8") as f:
-    f.write(html)
-"/mnt/data/index.html"
