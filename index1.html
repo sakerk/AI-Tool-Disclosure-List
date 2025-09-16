@@ -1,4 +1,4 @@
-<!doctype html>
+html = r"""<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -152,29 +152,26 @@
 
   <script>
     // ---- Config ----
-    // GitHub repo info for reading/writing Markdown rows in /data
     const GH_OWNER  = "sakerk";                 // CHANGE if needed
     const GH_REPO   = "AI-Tool-Disclosure-List"; // CHANGE if needed
     const GH_BRANCH = "main";                    // 'main' or 'gh-pages'
     const DATA_DIR  = "data";                    // folder containing per-row .md files
 
-    // Optional: personal access token (scoped to repository contents) for writing new files.
-    // Leave blank to be prompted once on first Save (stored in localStorage).
+    // Optional: personal access token (repo contents write). Stored locally.
     let GH_TOKEN = localStorage.getItem("ghToken") || "";
 
-    // Canonical header order (also used if we can't infer from first file)
     const DEFAULT_HEADERS = [
       "Tool Name","License Type","Tool Type","Tool Category","Hosting Model",
       "Risk Level","Output Handling Category","Usage Description","Official Website","Approval Status"
     ];
 
     // ---- State ----
-    let HEADERS = [];               // populated from the first .md table we load (or DEFAULT_HEADERS)
-    let ROWS = [];                  // array of arrays (cells)
-    const SELECTED = new Set();     // selected row indices
-    let COL_VISIBLE = [];           // boolean per column
-    let COL_WIDTHS = [];            // pixel widths per column (null for auto)
-    let INDEX_ROWS = [];            // for searching
+    let HEADERS = [];
+    let ROWS = [];
+    const SELECTED = new Set();
+    let COL_VISIBLE = [];
+    let COL_WIDTHS = [];
+    let INDEX_ROWS = [];
 
     // ---- GitHub helpers ----
     function ghContentsUrl(dir){
@@ -183,25 +180,36 @@
     function ghRawUrl(path){
       return `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${path}`;
     }
+
+    // READ: Prefer unauthenticated; if that fails and a token exists, retry with auth.
     async function listMarkdownFiles(){
       const url = ghContentsUrl(DATA_DIR);
-      const res = await fetch(url, { headers: GH_TOKEN ? { "Authorization": "Bearer " + GH_TOKEN } : {} });
+      let res = await fetch(url); // unauth first
+      if(!res.ok && GH_TOKEN){
+        res = await fetch(url, { headers: { "Authorization": "Bearer " + GH_TOKEN } });
+      }
       if(!res.ok) throw new Error("GitHub list error " + res.status);
       const items = await res.json();
-      return items.filter(it => it.type === "file" && /\.md$/i.test(it.name)).sort((a,b)=>a.name.localeCompare(b.name));
+      return items.filter(it => it.type === "file" && /\.md$/i.test(it.name))
+                  .sort((a,b)=>a.name.localeCompare(b.name));
     }
     async function fetchText(url){
-      const res = await fetch(url, { headers: GH_TOKEN ? { "Authorization": "Bearer " + GH_TOKEN } : {} });
+      let res = await fetch(url); // unauth first (works for public raw URLs)
+      if(!res.ok && GH_TOKEN){
+        res = await fetch(url, { headers: { "Authorization": "Bearer " + GH_TOKEN } });
+      }
       if(!res.ok) throw new Error("Fetch error " + res.status + " for " + url);
       return res.text();
     }
+
     function base64EncodeUnicode(str){
-      // Proper base64 for unicode strings
       return btoa(unescape(encodeURIComponent(str)));
     }
+
+    // WRITE: Use token only here.
     async function createFileInRepo(path, content, message){
       if(!GH_TOKEN){
-        const tok = prompt("GitHub token (repo contents write). It will be stored locally.", "");
+        const tok = prompt("GitHub token (contents:write for this repo). Stored locally.", "");
         if(!tok){ throw new Error("Write cancelled (no token)"); }
         GH_TOKEN = tok.trim();
         localStorage.setItem("ghToken", GH_TOKEN);
@@ -225,17 +233,16 @@
       return res.json();
     }
 
-    // ---- Markdown table parsing ----
+    // ---- Markdown parsing ----
     function splitCells(line){
-      // remove leading/trailing pipe and split on unescaped pipes
       let s = line.trim();
-      s = s.replace(/^\|/, "").replace(/\|$/, "");
+      s = s.replace(/^\\|/, "").replace(/\\|$/, "");
       const parts = [];
       let cur = ""; let esc = false;
       for(let i=0;i<s.length;i++){
         const ch = s[i];
         if(esc){ cur += ch; esc = false; continue; }
-        if(ch === "\\"){ esc = true; continue; }
+        if(ch === "\\\\"){ esc = true; continue; }
         if(ch === "|"){ parts.push(cur.trim()); cur = ""; continue; }
         cur += ch;
       }
@@ -243,16 +250,16 @@
       return parts;
     }
     function parseFirstTable(md){
-      const lines = md.split(/\r?\n/);
+      const lines = md.split(/\\r?\\n/);
       for(let i=0;i<lines.length-1;i++){
         const headerLine = lines[i];
         const sepLine = lines[i+1] || "";
-        if(/^\s*\|.*\|\s*$/.test(headerLine) && /^\s*\|\s*:?-{3,}.*\|\s*$/.test(sepLine)){
+        if(/^\\s*\\|.*\\|\\s*$/.test(headerLine) && /^\\s*\\|\\s*:?-{3,}.*\\|\\s*$/.test(sepLine)){
           const headers = splitCells(headerLine);
           const rows = [];
           for(let j=i+2; j<lines.length; j++){
             const ln = lines[j];
-            if(!/^\s*\|.*\|\s*$/.test(ln)) break;
+            if(!/^\\s*\\|.*\\|\\s*$/.test(ln)) break;
             const cells = splitCells(ln);
             if(cells.every(c => c.trim()==="")) continue;
             rows.push(cells);
@@ -263,10 +270,9 @@
       return null;
     }
 
-    // ---- Rendering ----
+    // ---- Rendering (same as before) ----
     function renderTable(headers, rows){
       const tbl = document.getElementById("sheet");
-      // rebuild skeleton
       tbl.innerHTML = "";
       const colgroup = document.createElement("colgroup");
       colgroup.id = "colgroup";
@@ -278,7 +284,6 @@
       const thead = document.createElement("thead");
       const trh = document.createElement("tr");
 
-      // Selection master
       const thSel = document.createElement("th");
       thSel.className = "selCol";
       const master = document.createElement("input");
@@ -288,7 +293,6 @@
       thSel.appendChild(master);
       trh.appendChild(thSel);
 
-      // Header cells + resizers
       headers.forEach((h, i) => {
         const th = document.createElement("th");
         th.dataset.col = String(i);
@@ -303,7 +307,6 @@
         th.appendChild(handle);
         trh.appendChild(th);
 
-        // add a <col> for this column for sizing
         const c = document.createElement("col");
         c.dataset.col = String(i);
         colgroup.appendChild(c);
@@ -315,7 +318,6 @@
         const tr = document.createElement("tr");
         tr.dataset.index = String(idx);
 
-        // selection checkbox
         const tdSel = document.createElement("td");
         tdSel.className = "selCol";
         const cb = document.createElement("input");
@@ -325,7 +327,6 @@
         tdSel.appendChild(cb);
         tr.appendChild(tdSel);
 
-        // data cells
         r.forEach((v, i) => {
           const td = document.createElement("td");
           td.dataset.col = String(i);
@@ -373,7 +374,6 @@
       });
     }
 
-    // ---- Resizing ----
     let resizeState = null;
     function startResize(i, ev){
       ev.preventDefault();
@@ -410,7 +410,6 @@
       applyColumnWidths();
     }
 
-    // ---- Selection ----
     function toggleRow(idx, tr, on){
       if(on){ SELECTED.add(idx); tr.classList.add("selected"); }
       else { SELECTED.delete(idx); tr.classList.remove("selected"); }
@@ -426,7 +425,6 @@
       });
     }
 
-    // ---- Search ----
     function buildIndexRows(){
       const tbodyRows = Array.from(document.querySelectorAll("#sheet tbody tr"));
       INDEX_ROWS = tbodyRows.map(tr => {
@@ -439,7 +437,7 @@
       const q = document.getElementById("q");
       const debounced = debounce(() => {
         const val = q.value.trim().toLowerCase();
-        const terms = val.split(/\s+/).filter(Boolean);
+        const terms = val.split(/\\s+/).filter(Boolean);
         INDEX_ROWS.forEach(({tr, text}) => {
           const hit = terms.every(t => text.includes(t));
           tr.classList.toggle("hide", !hit);
@@ -459,7 +457,6 @@
       let t; return function(){ clearTimeout(t); t = setTimeout(fn, ms); };
     }
 
-    // ---- Columns panel ----
     function buildColumnsPanel(){
       const panel = document.getElementById("colsPanel");
       panel.innerHTML = "";
@@ -497,24 +494,23 @@
       });
     }
 
-    // ---- Export ----
     function toMarkdown(headers, rows, titleText){
-      const escPipe = v => (v==null ? "" : String(v).replace(/\|/g, "\\|"));
+      const escPipe = v => (v==null ? "" : String(v).replace(/\\|/g, "\\\\|"));
       const headLine = "| " + headers.map(escPipe).join(" | ") + " |";
       const sepLine  = "| " + headers.map(()=>"---").join(" | ") + " |";
-      const body = rows.map(r => "| " + r.map(escPipe).join(" | ") + " |").join("\n");
-      const table = headLine + "\n" + sepLine + "\n" + body + "\n";
-      return (titleText ? ("# " + titleText + "\n\n") : "") + table;
+      const body = rows.map(r => "| " + r.map(escPipe).join(" | ") + " |").join("\\n");
+      const table = headLine + "\\n" + sepLine + "\\n" + body + "\\n";
+      return (titleText ? ("# " + titleText + "\\n\\n") : "") + table;
     }
     function toCSV(headers, rows){
       function esc(v){
         if(v==null) v = "";
         v = String(v);
-        if(/[\",\n]/.test(v)){ v = '\"' + v.replace(/\"/g, '\"\"') + '\"'; }
+        if(/[\\\",\\n]/.test(v)){ v = '\"' + v.replace(/\\\"/g, '\\\"\\\"') + '\"'; }
         return v;
       }
       const all = [headers, ...rows];
-      return all.map(r => r.map(esc).join(",")).join("\r\n") + "\r\n";
+      return all.map(r => r.map(esc).join(",")).join("\\r\\n") + "\\r\\n";
     }
     function downloadFile(filename, text, mime){
       const blob = new Blob([text], {type: mime});
@@ -546,7 +542,6 @@
       return { fh, fr };
     }
 
-    // ---- Add Row Modal ----
     const addModal = () => document.getElementById('addModal');
     const addGrid  = () => document.getElementById('addGrid');
     const addMsg   = () => document.getElementById('addMsg');
@@ -599,29 +594,24 @@
       try{
         setStatus('Saving…');
         await createFileInRepo(path, md, `Add tool row: ${values[0] || 'New Entry'}`);
-        // optimistic UI update
         ROWS.push(values);
         renderTable(HEADERS, ROWS);
         setStatus('Saved', true);
         setTimeout(closeAddModal, 400);
       }catch(err){
         console.warn('Write to GitHub failed or cancelled:', err);
-        // Offer a download fallback
         downloadFile(path.split('/').pop(), md, 'text/markdown');
         setStatus('Downloaded (add to repo /data manually)', true);
       }
     });
 
-    // ---- Load all .md rows from /data ----
     async function loadAll(){
       const list = await listMarkdownFiles();
       const files = list.map(it => ({ name: it.name, url: it.download_url || ghRawUrl(`${DATA_DIR}/${it.name}`) }));
-      // Optional: show progress in count label
       const countEl = document.getElementById("count");
       ROWS = [];
       HEADERS = [];
       countEl.textContent = "Loading…";
-      // Fetch sequentially to be gentle (or adjust concurrency)
       for(let i=0;i<files.length;i++){
         const {name, url} = files[i];
         try{
@@ -629,15 +619,12 @@
           const parsed = parseFirstTable(text);
           if(!parsed) continue;
           if(HEADERS.length === 0){
-            // Use header from the first MD only
             HEADERS = parsed.headers.length ? parsed.headers : DEFAULT_HEADERS.slice();
             COL_VISIBLE = HEADERS.map(()=>true);
             COL_WIDTHS = HEADERS.map(()=>null);
           }
-          // Only use the first data row from each file
           if(parsed.rows && parsed.rows.length){
             const row = parsed.rows[0];
-            // Normalize cell count to headers length
             const cells = HEADERS.map((_, idx) => row[idx] ?? "");
             ROWS.push(cells);
           }
@@ -646,7 +633,6 @@
           console.warn("Skipping file due to error", name, e);
         }
       }
-      // Render
       if(HEADERS.length === 0) HEADERS = DEFAULT_HEADERS.slice();
       renderTable(HEADERS, ROWS);
       buildColumnsPanel();
@@ -654,7 +640,6 @@
       setupSearch();
     }
 
-    // ---- Wire Export ----
     document.getElementById("exportBtn").addEventListener("click", () => {
       if(!HEADERS.length) return;
       const fmt = document.getElementById("fmt").value;
@@ -669,7 +654,6 @@
       }
     });
 
-    // ---- Go ----
     loadAll().catch(err => {
       const tbl = document.getElementById("sheet");
       tbl.innerHTML = "<thead><tr><th>Error</th></tr></thead><tbody><tr><td>Failed to load /data markdown files: " + (err && err.message ? err.message : err) + "</td></tr></tbody>";
@@ -678,3 +662,7 @@
   </script>
 </body>
 </html>
+"""
+with open("/mnt/data/index.html", "w", encoding="utf-8") as f:
+    f.write(html)
+"/mnt/data/index.html"
